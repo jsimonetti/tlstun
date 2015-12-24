@@ -3,13 +3,9 @@ package main
 import (
 	"fmt"
 	"net"
-)
 
-const STATUS_GRANTED uint8 = 0x00
-const STATUS_FALURE uint8 = 0x01
-const STATUS_UNAUTH uint8 = 0x02
-const STATUS_NETUNREACH uint8 = 0x03
-const STATUS_HOSTUNREACH uint8 = 0x04
+	"github.com/jsimonetti/tlstun/shared"
+)
 
 type clEcho struct {
 	version uint8
@@ -25,7 +21,7 @@ func (msg *clEcho) write(conn net.Conn) {
 	conn.Write(msg.buf[:])
 }
 func (msg *clEcho) print() {
-	Log("client", "debug", fmt.Sprintf("sent echo: version: %d method: %d", msg.version, msg.method))
+	shared.Log("client", "debug", fmt.Sprintf("sent echo: version: %d method: %d", msg.version, msg.method))
 }
 
 type clResponse struct {
@@ -50,16 +46,10 @@ func (msg *clResponse) gen(req *clRequest, reply uint8) {
 		msg.buf[i] = 0
 	}
 	msg.mlen = 10
-	//i := 4
-	//for ; i+4 <= int(req.dst_addr[0]); i++ {
-	//	msg.buf[i] = req.dst_addr[i-4]
-	//}
-	//msg.buf[i], msg.buf[i+1] = req.dst_port[0], req.dst_port[1]
-	//msg.mlen = uint16(i + 2)
 }
 func (msg *clResponse) write(conn net.Conn) {
 	conn.Write(msg.buf[:msg.mlen])
 }
 func (msg *clResponse) print() {
-	Log("client", "info", fmt.Sprintf("sent response: %v", msg.buf[:msg.mlen]))
+	shared.Log("client", "info", fmt.Sprintf("sent response: %v", msg.buf[:msg.mlen]))
 }

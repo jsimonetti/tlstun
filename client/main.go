@@ -12,7 +12,6 @@ var serverIp string
 var serverPort int
 
 func main() {
-	Log("daemon", "info", "starting proxy")
 	flag.Parse()
 	wsServer := fmt.Sprintf("%s:%d", serverIp, serverPort)
 	forward(wsServer)

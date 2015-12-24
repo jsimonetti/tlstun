@@ -1,4 +1,4 @@
-package main
+package shared
 
 import (
 	"io"
@@ -7,9 +7,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func pipe(pconn *websocket.Conn, conn net.Conn) {
-	go forwardconn(pconn, conn)
-	go forwardws(pconn, conn)
+func Pipe(wsconn *websocket.Conn, conn net.Conn) {
+	go forwardconn(wsconn, conn)
+	go forwardws(wsconn, conn)
 }
 
 func forwardconn(wsconn *websocket.Conn, conn net.Conn) {

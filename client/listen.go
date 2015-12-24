@@ -7,6 +7,8 @@ import (
 	"net"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/jsimonetti/tlstun/shared"
 )
 
 var wsServer string = "127.0.0.1:12345"
@@ -15,7 +17,7 @@ func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 	for nn := 0; n < m; {
 		nn, err = conn.Read(buf[n:m])
 		if nil != err && io.EOF != err {
-			Log("daemon", "error", fmt.Sprintf("err: %s", err))
+			shared.Log("daemon", "error", fmt.Sprintf("err: %s", err))
 			panic(err)
 			return
 		}
@@ -25,7 +27,7 @@ func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 }
 
 func handleConn(conn net.Conn) {
-	Log("client", "info", fmt.Sprintf("accepted connection from: %s", conn.RemoteAddr()))
+	shared.Log("client", "info", fmt.Sprintf("accepted connection from: %s", conn.RemoteAddr()))
 
 	var clhello clHello
 	var clecho clEcho
@@ -56,11 +58,11 @@ func handleConn(conn net.Conn) {
 	parameters := base64.StdEncoding.EncodeToString(durl)
 
 	wsurl := fmt.Sprintf("ws://%s/sock/%d/%s/%s", wsServer, clrequest.version, clrequest.reqtype, parameters)
-	Log("daemon", "debug", fmt.Sprintf("dailing: %s", wsurl))
+	shared.Log("daemon", "debug", fmt.Sprintf("dailing: %s", wsurl))
 
 	pconn, _, err := websocket.DefaultDialer.Dial(wsurl, nil)
 	if err != nil {
-		Log("daemon", "fatal", fmt.Sprintf("ws dailer failed: %s", err))
+		shared.Log("daemon", "fatal", fmt.Sprintf("ws dailer failed: %s", err))
 	}
 
 	//reply
@@ -76,7 +78,7 @@ func handleConn(conn net.Conn) {
 	clresponse.write(conn)
 	clresponse.print()
 
-	pipe(pconn, conn)
+	shared.Pipe(pconn, conn)
 }
 
 func forward(wss string) {
@@ -84,15 +86,15 @@ func forward(wss string) {
 	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
 	ln, err := net.Listen("tcp", addr)
 	if nil != err {
-		Log("daemon", "error", "Bind Error!")
+		shared.Log("daemon", "error", "Bind Error!")
 		return
 	}
-	Log("daemon", "info", fmt.Sprintf("listening for connections on: %s", addr))
+	shared.Log("daemon", "info", fmt.Sprintf("listening for connections on: %s", addr))
 
 	for {
 		conn, err := ln.Accept()
 		if nil != err {
-			Log("daemon", "error", "Accept Error!")
+			shared.Log("daemon", "error", "Accept Error!")
 			continue
 		}
 

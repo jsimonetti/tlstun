@@ -10,8 +10,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-
 	"golang.org/x/net/http2"
+
+	"github.com/jsimonetti/tlstun/shared"
 )
 
 var upgrader = websocket.Upgrader{
@@ -46,17 +47,17 @@ type connection struct {
 
 func (c *connection) handle() {
 
-	Log("daemon", "debug", fmt.Sprintf("handled connection: version: %d, request: %s, parameters: %s", c.version, c.request, c.parameters))
+	shared.Log("daemon", "debug", fmt.Sprintf("handled connection: version: %d, request: %s, parameters: %s", c.version, c.request, c.parameters))
 
 	var err error
 	c.conn, err = net.Dial(c.request, c.parameters)
 
 	if err != nil {
-		Log("daemon", "debug", fmt.Sprintf("error dialing %s - %s, err: %s", c.request, c.parameters, err))
+		shared.Log("daemon", "debug", fmt.Sprintf("error dialing %s - %s, err: %s", c.request, c.parameters, err))
 		c.ws.Close()
 		return
 	}
-	pipe(c.ws, c.conn)
+	shared.Pipe(c.ws, c.conn)
 }
 
 // serveWs handles websocket requests from the peer.
@@ -66,13 +67,13 @@ func sockHandler(w http.ResponseWriter, r *http.Request) {
 	request := vars["request"]
 	parameters, err := base64.StdEncoding.DecodeString(vars["parameters"])
 	if err != nil {
-		Log("daemon", "error", fmt.Sprintf("base64decode failed: %s", err))
+		shared.Log("daemon", "error", fmt.Sprintf("base64decode failed: %s", err))
 		return
 	}
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		Log("daemon", "error", fmt.Sprintf("ws upgrade failed: %s", err))
+		shared.Log("daemon", "error", fmt.Sprintf("ws upgrade failed: %s", err))
 		return
 	}
 	c := &connection{version: version, request: request, parameters: fmt.Sprintf("%s", parameters), ws: ws}
@@ -89,12 +90,12 @@ func listen() {
 		Handler: mux,
 	}
 
-	Log("daemon", "info", "attemting upgrade of server to http/2")
+	shared.Log("daemon", "info", "attemting upgrade of server to http/2")
 	if err := http2.ConfigureServer(server, nil); err != nil {
-		Log("daemon", "info", fmt.Sprintf("upgrade to http/2 failed: %s", err))
+		shared.Log("daemon", "info", fmt.Sprintf("upgrade to http/2 failed: %s", err))
 	}
 
-	Log("daemon", "info", fmt.Sprintf("Listening on %s", addr))
+	shared.Log("daemon", "info", fmt.Sprintf("Listening on %s", addr))
 	err := server.ListenAndServe()
 	if err != nil {
 		panic("ListenAndServe: " + err.Error())
@@ -102,7 +103,6 @@ func listen() {
 }
 
 func main() {
-	Log("daemon", "info", "starting server")
 	flag.Parse()
 	listen()
 }

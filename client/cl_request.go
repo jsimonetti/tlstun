@@ -1,25 +1,11 @@
 package main
 
 import (
-	//	"bytes"
-	//	"encoding/binary"
 	"fmt"
 	"net"
+
+	"github.com/jsimonetti/tlstun/shared"
 )
-
-const SOCKS_VERSION5 uint8 = 0x05
-
-const CMD_CONNECT uint8 = 0x01
-const CMD_BIND uint8 = 0x02
-const CMD_UDPASSOC uint8 = 0x03
-
-const ADDRTYPE_IPV4 uint8 = 0x01
-const ADDRTYPE_DOMAIN uint8 = 0x03
-const ADDRTYPE_IPV6 uint8 = 0x04
-
-const AUTH_NONE uint8 = 0x00
-const AUTH_GSSAPI uint8 = 0x01
-const AUTH_USERPASS uint8 = 0x02
 
 type clHello struct {
 	version         uint8
@@ -40,7 +26,7 @@ func (msg *clHello) read(conn net.Conn) (err error) {
 	return
 }
 func (msg *clHello) print() {
-	Log("client", "debug", fmt.Sprintf("received hello: version: %d authmethodcount: %d, authmethods: %+v", msg.version, msg.authmethodcount, msg.authmethods[:msg.authmethodcount]))
+	shared.Log("client", "debug", fmt.Sprintf("received hello: version: %d authmethodcount: %d, authmethods: %+v", msg.version, msg.authmethodcount, msg.authmethods[:msg.authmethodcount]))
 }
 
 type clRequest struct {
@@ -66,9 +52,10 @@ func (msg *clRequest) read(conn net.Conn) (err error) {
 	msg.version, msg.command, msg.reserved, msg.addrestype = buf[0], buf[1], buf[2], buf[3]
 
 	if 5 != msg.version || 0 != msg.reserved {
-		Log("client", "error", "Request Message VER or RSV error!")
+		shared.Log("client", "error", "Request Message VER or RSV error!")
 		return
 	}
+
 	switch msg.addrestype {
 	case 1: //ip v4
 		_, err = recv(msg.dst_addr[:], 4, conn)
@@ -81,26 +68,23 @@ func (msg *clRequest) read(conn net.Conn) (err error) {
 	if nil != err {
 		return
 	}
+
 	_, err = recv(msg.dst_port[:], 2, conn)
 	if nil != err {
 		return
 	}
-	//bbuf := bytes.NewBuffer(msg.dst_port[:])
-	//err = binary.Read(bbuf, binary.BigEndian, msg.dst_port2)
-	//if nil != err {
-	//	Log.Println(err)
-	//	return
-	//}
+
 	msg.dst_port2 = (uint16(msg.dst_port[0]) << 8) + uint16(msg.dst_port[1])
 
 	switch msg.command {
 	case 1:
 		msg.reqtype = "tcp"
 	case 2:
-		Log("client", "error", "BIND not implemented")
+		shared.Log("client", "error", "BIND not implemented")
 	case 3:
 		msg.reqtype = "udp"
 	}
+
 	switch msg.addrestype {
 	case 1: // ipv4
 		msg.url = fmt.Sprintf("%d.%d.%d.%d:%d", msg.dst_addr[0], msg.dst_addr[1], msg.dst_addr[2], msg.dst_addr[3], msg.dst_port2)
@@ -108,10 +92,10 @@ func (msg *clRequest) read(conn net.Conn) (err error) {
 		msg.url = string(msg.dst_addr[1 : 1+msg.dst_addr[0]])
 		msg.url += fmt.Sprintf(":%d", msg.dst_port2)
 	case 4: //ipv6
-		Log("client", "error", "IPV6 not implemented")
+		shared.Log("client", "error", "IPV6 not implemented")
 	}
 	return
 }
 func (msg *clRequest) print() {
-	Log("client", "info", fmt.Sprintf("received request: version: %d command: %d, reserved: %d addrestype: %d, dst_addr: %s", msg.version, msg.command, msg.reserved, msg.addrestype, msg.url))
+	shared.Log("client", "info", fmt.Sprintf("received request: version: %d command: %d, reserved: %d addrestype: %d, dst_addr: %s", msg.version, msg.command, msg.reserved, msg.addrestype, msg.url))
 }
