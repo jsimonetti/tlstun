@@ -57,7 +57,7 @@ func handleConn(conn net.Conn) {
 	durl := []byte(clrequest.url)
 	parameters := base64.StdEncoding.EncodeToString(durl)
 
-	wsurl := fmt.Sprintf("ws://%s/sock/%d/%s/%s", wsServer, clrequest.version, clrequest.reqtype, parameters)
+	wsurl := fmt.Sprintf("wss://%s/sock/%d/%s/%s", wsServer, clrequest.version, clrequest.reqtype, parameters)
 	shared.Log("daemon", "debug", fmt.Sprintf("dailing: %s", wsurl))
 
 	pconn, _, err := websocket.DefaultDialer.Dial(wsurl, nil)
