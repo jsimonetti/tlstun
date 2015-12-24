@@ -4,6 +4,8 @@ import (
 	"log"
 )
 
+var ShowLog bool
+
 func padRight(str, pad string) string {
 	str += pad
 	return str
@@ -26,7 +28,14 @@ func fixedLen(str string, leng int) string {
 }
 
 func Log(component string, lvl string, msg string) {
+	if !ShowLog {
+		return
+	}
 	component = fixedLen(component, 8)
 	lvl = fixedLen(lvl, 6)
 	log.Printf("[%s] [%s] - %s\n", component, lvl, msg)
+}
+
+func init() {
+	ShowLog = false
 }

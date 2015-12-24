@@ -12,7 +12,6 @@ import (
 	"math/big"
 	"net"
 	"os"
-	"os/user"
 	"path"
 	"time"
 )
@@ -56,10 +55,10 @@ func GetTLSConfig(certf string, keyf string) (*tls.Config, error) {
 
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
-		//		ClientAuth:         tls.RequestClientCert,
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS12,
-		MaxVersion:   tls.VersionTLS12,
+		ClientAuth:         tls.RequestClientCert,
+		Certificates:       []tls.Certificate{cert},
+		MinVersion:         tls.VersionTLS12,
+		MaxVersion:         tls.VersionTLS12,
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
@@ -121,27 +120,11 @@ func GenCert(certf string, keyf string) error {
 		return err
 	}
 
-	userEntry, err := user.Current()
-	var username string
-	if err == nil {
-		username = userEntry.Username
-		if username == "" {
-			username = "UNKNOWN"
-		}
-	} else {
-		username = "UNKNOWN"
-	}
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "UNKNOWN"
-	}
-
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"TLSTun"},
-			CommonName:   fmt.Sprintf("%s@%s", username, hostname),
+			CommonName:   "TLSTun",
 		},
 		NotBefore: validFrom,
 		NotAfter:  validTo,
