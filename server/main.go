@@ -20,8 +20,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  10240,
-	WriteBufferSize: 10240,
+	ReadBufferSize:  1024 * 1024,
+	WriteBufferSize: 1024 * 1024,
 }
 
 var listenIp string

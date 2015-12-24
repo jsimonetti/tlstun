@@ -16,7 +16,7 @@ func forwardconn(wsconn *websocket.Conn, conn net.Conn) {
 
 	for {
 		// Receive and forward pending data from tcp socket to web socket
-		tcpbuffer := make([]byte, 1024)
+		tcpbuffer := make([]byte, 1024*1024)
 
 		n, err := conn.Read(tcpbuffer)
 		if err == io.EOF {
