@@ -15,8 +15,25 @@ This will punch through all known firewalls that do actual inspection of
 traffic.
 
 
+
+-- Options for client component:
+```
+    -log    Show logging
+    -ip     Ip address to listen on (This will be your Socks5 ip)
+    -port   Local port to bind to (This will be your Socks5 port)
+
+    -sip    Ip of the server component to connect the websockets to
+    -sport  Port of the server component to connect the websockets to
+```
+
+-- Options for server component:
+```
+    -log    Show logging
+    -ip     Ip address to listen on
+    -port   Local port to bind to
+```
+
 ### TODO:
 - add certificate authentication to server and client component
 - add passthrough functionality to server to allow running it in front of an existing
 webserver
-- add proxy support for client component
