@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
+	//	"encoding/pem"
 	"flag"
 	"fmt"
 	"net"
@@ -22,6 +26,35 @@ var upgrader = websocket.Upgrader{
 
 var listenIp string
 var listenPort int
+
+var clientCerts []x509.Certificate
+var tlsConfig *tls.Config
+
+var certf string
+var keyf string
+
+func readSavedClientCAList() {
+	return
+	/*
+		clientCerts = []x509.Certificate{}
+
+		dbCerts, err := dbCertsGet()
+		if err != nil {
+			shared.Log("daemon", "error", fmt.Sprintf("Error reading certificates from database: %s", err))
+			return
+		}
+
+		for _, dbCert := range dbCerts {
+			certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
+			cert, err := x509.ParseCertificate(certBlock.Bytes)
+			if err != nil {
+				shared.Log("daemon", "error", fmt.Sprintf("Error reading certificate for %s: %s", dbCert.Name, err))
+				continue
+			}
+			clientCerts = append(clientCerts, *cert)
+		}
+	*/
+}
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
@@ -79,15 +112,62 @@ func sockHandler(w http.ResponseWriter, r *http.Request) {
 	c := &connection{version: version, request: request, parameters: fmt.Sprintf("%s", parameters), ws: ws}
 	go c.handle()
 }
+
+func isTrustedClient(r *http.Request) bool {
+	if r.TLS == nil {
+		return false
+	}
+	for i := range r.TLS.PeerCertificates {
+		if checkTrustState(*r.TLS.PeerCertificates[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+func checkTrustState(cert x509.Certificate) bool {
+	for _, v := range clientCerts {
+		if bytes.Compare(cert.Raw, v.Raw) == 0 {
+			shared.Log("daemon", "debug", "Found cert")
+			return true
+		}
+		shared.Log("daemon", "debug", "Client cert != key")
+	}
+	return false
+}
+
+func readMyCert() (string, string, error) {
+	certf := "server.crt"
+	keyf := "server.key"
+	shared.Log("daemon", "info", fmt.Sprintf("Looking for existing certificates cert: %s, key: %s", certf, keyf))
+
+	err := shared.FindOrGenCert(certf, keyf)
+
+	return certf, keyf, err
+}
+
 func listen() {
+	/* Setup the TLS authentication */
+	certf, keyf, err := readMyCert()
+	if err != nil {
+		return
+	}
+	readSavedClientCAList()
+
+	tlsConfig, err = shared.GetTLSConfig(certf, keyf)
+	if err != nil {
+		return
+	}
+
 	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
 	mux := mux.NewRouter()
 	mux.HandleFunc("/sock/{version}/{request}/{parameters}", sockHandler)
 	mux.HandleFunc("/", serveHome)
 
 	server := &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:      addr,
+		Handler:   mux,
+		TLSConfig: tlsConfig,
 	}
 
 	shared.Log("daemon", "info", "attemting upgrade of server to http/2")
@@ -96,7 +176,7 @@ func listen() {
 	}
 
 	shared.Log("daemon", "info", fmt.Sprintf("Listening on %s", addr))
-	err := server.ListenAndServe()
+	err = server.ListenAndServeTLS(certf, keyf)
 	if err != nil {
 		panic("ListenAndServe: " + err.Error())
 	}
