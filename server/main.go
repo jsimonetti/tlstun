@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"strconv"
-	"text/template"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -17,7 +17,8 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 10240,
 }
 
-var homeTempl = template.Must(template.ParseFiles("home.html"))
+var listenIp string
+var listenPort int
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
@@ -29,7 +30,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	homeTempl.Execute(w, r.Host)
+	w.Write([]byte("It Works!"))
 }
 
 type connection struct {
@@ -75,16 +76,26 @@ func sockHandler(w http.ResponseWriter, r *http.Request) {
 	c := &connection{version: version, request: request, parameters: fmt.Sprintf("%s", parameters), ws: ws}
 	go c.handle()
 }
-
-// This example demonstrates a trivial echo server.
-func main() {
+func listen() {
+	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
 	mux := mux.NewRouter()
 	mux.HandleFunc("/sock/{version}/{request}/{parameters}", sockHandler)
 	mux.HandleFunc("/", serveHome)
 
-	Log("daemon", "info", "Listening to :12345")
-	err := http.ListenAndServe(":12345", mux)
+	Log("daemon", "info", fmt.Sprintf("Listening on %s", addr))
+	err := http.ListenAndServe(addr, mux)
 	if err != nil {
 		panic("ListenAndServe: " + err.Error())
 	}
+}
+
+func main() {
+	Log("daemon", "info", "starting proxy")
+	flag.Parse()
+	listen()
+}
+
+func init() {
+	flag.IntVar(&listenPort, "port", 443, "port to listen on")
+	flag.StringVar(&listenIp, "ip", "", "ip to bind to")
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var wsServer string = "10.10.1.10:12345"
+var wsServer string = "127.0.0.1:12345"
 
 func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 	for nn := 0; n < m; {
@@ -79,7 +79,8 @@ func handleConn(conn net.Conn) {
 	pipe(pconn, conn)
 }
 
-func listen() {
+func forward(wss string) {
+	wsServer = wss
 	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
 	ln, err := net.Listen("tcp", addr)
 	if nil != err {
