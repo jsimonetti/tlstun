@@ -10,6 +10,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+
+	"golang.org/x/net/http2"
 )
 
 var upgrader = websocket.Upgrader{
@@ -82,8 +84,18 @@ func listen() {
 	mux.HandleFunc("/sock/{version}/{request}/{parameters}", sockHandler)
 	mux.HandleFunc("/", serveHome)
 
+	server := &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+
+	Log("daemon", "info", "attemting upgrade of server to http/2")
+	if err := http2.ConfigureServer(server, nil); err != nil {
+		Log("daemon", "info", fmt.Sprintf("upgrade to http/2 failed: %s", err))
+	}
+
 	Log("daemon", "info", fmt.Sprintf("Listening on %s", addr))
-	err := http.ListenAndServe(addr, mux)
+	err := server.ListenAndServe()
 	if err != nil {
 		panic("ListenAndServe: " + err.Error())
 	}
