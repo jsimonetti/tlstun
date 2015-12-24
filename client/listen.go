@@ -1,11 +1,8 @@
 package main
 
 import (
-	//	"bytes"
-	//	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"net"
 )
 
@@ -13,7 +10,7 @@ func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 	for nn := 0; n < m; {
 		nn, err = conn.Read(buf[n:m])
 		if nil != err && io.EOF != err {
-			log.Println("err:", err)
+			Log("daemon", "error", fmt.Sprintf("err: %s", err))
 			panic(err)
 			return
 		}
@@ -23,8 +20,7 @@ func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 }
 
 func handleConn(conn net.Conn) {
-	//defer conn.Close()
-	log.Println("remote addr:", conn.RemoteAddr())
+	Log("client", "info", fmt.Sprintf("accepted connection from: %s", conn.RemoteAddr()))
 
 	var clhello clHello
 	var clecho clEcho
@@ -53,7 +49,6 @@ func handleConn(conn net.Conn) {
 	//connect
 	var pconn net.Conn
 	pconn, err = net.Dial(clrequest.reqtype, clrequest.url)
-	//defer pconn.Close()
 
 	//reply
 	//error occur
@@ -71,14 +66,15 @@ func handleConn(conn net.Conn) {
 }
 
 func resend(in net.Conn, out net.Conn) {
+	Log("daemon", "debug", fmt.Sprintf("piping connection %s => %s", out.RemoteAddr(), in.RemoteAddr()))
 	buf := make([]byte, 10240)
 	for {
 		n, err := in.Read(buf)
-		if io.EOF == err {
-			log.Printf("io.EOF")
+		if err == io.EOF {
+			Log("daemon", "debug", fmt.Sprintf("connection closed %s => %s", out.RemoteAddr(), in.RemoteAddr()))
 			return
-		} else if nil != err {
-			log.Printf("resend err\n", err)
+		} else if err != nil {
+			Log("daemon", "error", fmt.Sprintf("resend err: %s", err))
 			return
 		}
 		out.Write(buf[:n])
@@ -90,17 +86,19 @@ func pipe(a net.Conn, b net.Conn) {
 	go resend(b, a)
 }
 
-func socks5proxy() {
-	ln, err := net.Listen("tcp", ":8000")
+func listen() {
+	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
+	ln, err := net.Listen("tcp", addr)
 	if nil != err {
-		fmt.Println("Bind Error!")
+		Log("daemon", "error", "Bind Error!")
 		return
 	}
+	Log("daemon", "info", fmt.Sprintf("listening for connections on: %s", addr))
 
 	for {
 		conn, err := ln.Accept()
 		if nil != err {
-			fmt.Println("Accept Error!")
+			Log("daemon", "error", "Accept Error!")
 			continue
 		}
 
