@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -12,6 +13,20 @@ import (
 )
 
 var wsServer string = "127.0.0.1:12345"
+
+var tlsConfig *tls.Config
+var certf string
+var keyf string
+
+func readMyCert() (string, string, error) {
+	certf := "client.crt"
+	keyf := "client.key"
+	shared.Log("daemon", "info", fmt.Sprintf("Looking for existing certificates cert: %s, key: %s", certf, keyf))
+
+	err := shared.FindOrGenCert(certf, keyf)
+
+	return certf, keyf, err
+}
 
 func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 	for nn := 0; n < m; {
@@ -60,7 +75,9 @@ func handleConn(conn net.Conn) {
 	wsurl := fmt.Sprintf("wss://%s/sock/%d/%s/%s", wsServer, clrequest.version, clrequest.reqtype, parameters)
 	shared.Log("daemon", "debug", fmt.Sprintf("dailing: %s", wsurl))
 
-	pconn, _, err := websocket.DefaultDialer.Dial(wsurl, nil)
+	wsdialer := &websocket.Dialer{TLSClientConfig: tlsConfig}
+
+	pconn, _, err := wsdialer.Dial(wsurl, nil)
 	if err != nil {
 		shared.Log("daemon", "fatal", fmt.Sprintf("ws dailer failed: %s", err))
 	}
@@ -82,7 +99,19 @@ func handleConn(conn net.Conn) {
 }
 
 func forward(wss string) {
+	var err error
+	certf, keyf, err = readMyCert()
+	if err != nil {
+		return
+	}
 	wsServer = wss
+
+	tlsConfig, err = shared.GetTLSConfig(certf, keyf)
+	if err != nil {
+		return
+	}
+	wsServer = wss
+
 	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
 	ln, err := net.Listen("tcp", addr)
 	if nil != err {
