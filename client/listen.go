@@ -26,47 +26,47 @@ func handleConn(conn net.Conn) {
 	//defer conn.Close()
 	log.Println("remote addr:", conn.RemoteAddr())
 
-	var reqhello reqHello
-	var ansecho ansEcho
-	var reqmsg reqMsg
-	var ansmsg ansMsg
+	var clhello clHello
+	var clecho clEcho
+	var clrequest clRequest
+	var clresponse clResponse
 
 	//recv hello
 	var err error = nil
-	err = reqhello.read(conn)
+	err = clhello.read(conn)
 	if nil != err {
 		return
 	}
-	reqhello.print()
+	clhello.print()
 
 	//send echo
-	ansecho.gen(0)
-	ansecho.write(conn)
-	ansecho.print()
+	clecho.gen(0)
+	clecho.write(conn)
+	clecho.print()
 
 	//recv request
-	err = reqmsg.read(conn)
+	err = clrequest.read(conn)
 	if nil != err {
 		return
 	}
-	reqmsg.print()
+	clrequest.print()
 	//connect
 	var pconn net.Conn
-	pconn, err = net.Dial(reqmsg.reqtype, reqmsg.url)
+	pconn, err = net.Dial(clrequest.reqtype, clrequest.url)
 	//defer pconn.Close()
 
 	//reply
 	//error occur
 	if nil != err {
-		ansmsg.gen(&reqmsg, 4)
-		ansmsg.write(conn)
-		ansmsg.print()
+		clresponse.gen(&clrequest, 4)
+		clresponse.write(conn)
+		clresponse.print()
 		return
 	}
 	//success
-	ansmsg.gen(&reqmsg, 0)
-	ansmsg.write(conn)
-	ansmsg.print()
+	clresponse.gen(&clrequest, 0)
+	clresponse.write(conn)
+	clresponse.print()
 	pipe(conn, pconn)
 }
 

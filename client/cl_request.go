@@ -7,13 +7,13 @@ import (
 	"net"
 )
 
-type reqHello struct {
+type clHello struct {
 	ver      uint8
 	nmethods uint8
 	methods  [255]uint8
 }
 
-func (msg *reqHello) read(conn net.Conn) (err error) {
+func (msg *clHello) read(conn net.Conn) (err error) {
 	_, err = recv(msg.methods[:2], 2, conn)
 	if nil != err {
 		return
@@ -25,11 +25,11 @@ func (msg *reqHello) read(conn net.Conn) (err error) {
 	}
 	return
 }
-func (msg *reqHello) print() {
-	Log(fmt.Sprintf("request: ver: %d nmethods: %d, methods: %v", msg.ver, msg.nmethods, msg.methods[:msg.nmethods]))
+func (msg *clHello) print() {
+	Log(fmt.Sprintf("[c] hello: ver: %d nmethods: %d, methods: %v", msg.ver, msg.nmethods, msg.methods[:msg.nmethods]))
 }
 
-type reqMsg struct {
+type clRequest struct {
 	ver       uint8     // socks v5: 0x05
 	cmd       uint8     // CONNECT: 0x01, BIND:0x02, UDP ASSOCIATE: 0x03
 	rsv       uint8     //RESERVED
@@ -42,7 +42,7 @@ type reqMsg struct {
 	url     string
 }
 
-func (msg *reqMsg) read(conn net.Conn) (err error) {
+func (msg *clRequest) read(conn net.Conn) (err error) {
 	buf := make([]byte, 4)
 	_, err = recv(buf, 4, conn)
 	if nil != err {
@@ -52,7 +52,7 @@ func (msg *reqMsg) read(conn net.Conn) (err error) {
 	msg.ver, msg.cmd, msg.rsv, msg.atyp = buf[0], buf[1], buf[2], buf[3]
 
 	if 5 != msg.ver || 0 != msg.rsv {
-		Log("Request Message VER or RSV error!")
+		Log("[c] Request Message VER or RSV error!")
 		return
 	}
 	switch msg.atyp {
@@ -83,7 +83,7 @@ func (msg *reqMsg) read(conn net.Conn) (err error) {
 	case 1:
 		msg.reqtype = "tcp"
 	case 2:
-		Log("BIND not implemented")
+		Log("[c] BIND not implemented")
 	case 3:
 		msg.reqtype = "udp"
 	}
@@ -94,10 +94,10 @@ func (msg *reqMsg) read(conn net.Conn) (err error) {
 		msg.url = string(msg.dst_addr[1 : 1+msg.dst_addr[0]])
 		msg.url += fmt.Sprintf(":%d", msg.dst_port2)
 	case 4: //ipv6
-		Log("IPV6 not implemented")
+		Log("[c] IPV6 not implemented")
 	}
 	return
 }
-func (msg *reqMsg) print() {
-	Log(fmt.Sprintf("request: ver: %d cmd: %d, rsv: %d atyp: %d, dst_addr: %s", msg.ver, msg.cmd, msg.rsv, msg.atyp, msg.url))
+func (msg *clRequest) print() {
+	Log(fmt.Sprintf("[c] request: ver: %d cmd: %d, rsv: %d atyp: %d, dst_addr: %s", msg.ver, msg.cmd, msg.rsv, msg.atyp, msg.url))
 }

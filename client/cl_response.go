@@ -1,30 +1,28 @@
 package main
 
 import (
-	//	"bytes"
-	//	"encoding/binary"
 	"fmt"
 	"net"
 )
 
-type ansEcho struct {
+type clEcho struct {
 	ver    uint8
 	method uint8
 	buf    [2]uint8
 }
 
-func (msg *ansEcho) gen(t uint8) {
+func (msg *clEcho) gen(t uint8) {
 	msg.ver, msg.method = 5, t
 	msg.buf[0], msg.buf[1] = 5, t
 }
-func (msg *ansEcho) write(conn net.Conn) {
+func (msg *clEcho) write(conn net.Conn) {
 	conn.Write(msg.buf[:])
 }
-func (msg *ansEcho) print() {
-	Log(fmt.Sprintln("answer: ver:", msg.ver, " method:", msg.method))
+func (msg *clEcho) print() {
+	Log(fmt.Sprintf("[c] echo: ver: %d method: %s", msg.ver, msg.method))
 }
 
-type ansMsg struct {
+type clResponse struct {
 	ver  uint8
 	rep  uint8
 	rsv  uint8
@@ -35,7 +33,7 @@ type ansMsg struct {
 	mlen uint16
 }
 
-func (msg *ansMsg) gen(req *reqMsg, rep uint8) {
+func (msg *clResponse) gen(req *clRequest, rep uint8) {
 	msg.ver = 5
 	msg.rep = rep //rfc1928
 	msg.rsv = 0
@@ -53,9 +51,9 @@ func (msg *ansMsg) gen(req *reqMsg, rep uint8) {
 	//msg.buf[i], msg.buf[i+1] = req.dst_port[0], req.dst_port[1]
 	//msg.mlen = uint16(i + 2)
 }
-func (msg *ansMsg) write(conn net.Conn) {
+func (msg *clResponse) write(conn net.Conn) {
 	conn.Write(msg.buf[:msg.mlen])
 }
-func (msg *ansMsg) print() {
-	Log(fmt.Sprintln("answer: ", msg.buf[:msg.mlen]))
+func (msg *clResponse) print() {
+	Log(fmt.Sprintf("[c] response: %s", msg.buf[:msg.mlen]))
 }
