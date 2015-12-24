@@ -102,7 +102,7 @@ func listen() {
 }
 
 func main() {
-	Log("daemon", "info", "starting proxy")
+	Log("daemon", "info", "starting server")
 	flag.Parse()
 	listen()
 }
