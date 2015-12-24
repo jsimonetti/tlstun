@@ -1,10 +1,15 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
+
+	"github.com/gorilla/websocket"
 )
+
+var wsServer string = "10.10.1.10:12345"
 
 func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 	for nn := 0; n < m; {
@@ -47,8 +52,16 @@ func handleConn(conn net.Conn) {
 	}
 	clrequest.print()
 	//connect
-	var pconn net.Conn
-	pconn, err = net.Dial(clrequest.reqtype, clrequest.url)
+	durl := []byte(clrequest.url)
+	parameters := base64.StdEncoding.EncodeToString(durl)
+
+	wsurl := fmt.Sprintf("ws://%s/sock/%d/%s/%s", wsServer, clrequest.version, clrequest.reqtype, parameters)
+	Log("daemon", "debug", fmt.Sprintf("dailing: %s", wsurl))
+
+	pconn, _, err := websocket.DefaultDialer.Dial(wsurl, nil)
+	if err != nil {
+		Log("daemon", "fatal", fmt.Sprintf("ws dailer failed: %s", err))
+	}
 
 	//reply
 	//error occur
@@ -62,28 +75,8 @@ func handleConn(conn net.Conn) {
 	clresponse.gen(&clrequest, 0)
 	clresponse.write(conn)
 	clresponse.print()
-	pipe(conn, pconn)
-}
 
-func resend(in net.Conn, out net.Conn) {
-	Log("daemon", "debug", fmt.Sprintf("piping connection %s => %s", out.RemoteAddr(), in.RemoteAddr()))
-	buf := make([]byte, 10240)
-	for {
-		n, err := in.Read(buf)
-		if err == io.EOF {
-			Log("daemon", "debug", fmt.Sprintf("connection closed %s => %s", out.RemoteAddr(), in.RemoteAddr()))
-			return
-		} else if err != nil {
-			Log("daemon", "error", fmt.Sprintf("resend err: %s", err))
-			return
-		}
-		out.Write(buf[:n])
-	}
-}
-
-func pipe(a net.Conn, b net.Conn) {
-	go resend(a, b)
-	go resend(b, a)
+	pipe(pconn, conn)
 }
 
 func listen() {
