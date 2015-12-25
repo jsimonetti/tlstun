@@ -3,11 +3,38 @@ package shared
 import (
 	"io"
 	"net"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
 
-func Pipe(wsconn *websocket.Conn, conn net.Conn) {
+func NewPipe(src io.ReadWriteCloser, dst io.ReadWriteCloser) (int64, int64) {
+
+	var sent, received int64
+	var c = make(chan bool)
+	var o sync.Once
+
+	close := func() {
+		src.Close()
+		dst.Close()
+		close(c)
+	}
+
+	go func() {
+		received, _ = io.Copy(src, dst)
+		o.Do(close)
+	}()
+
+	go func() {
+		sent, _ = io.Copy(dst, src)
+		o.Do(close)
+	}()
+
+	<-c
+	return received, sent
+}
+
+func OldPipe(wsconn *websocket.Conn, conn net.Conn) {
 	go forwardconn(wsconn, conn)
 	go forwardws(wsconn, conn)
 }

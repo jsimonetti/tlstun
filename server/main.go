@@ -90,7 +90,7 @@ func (c *connection) handle() {
 		c.ws.Close()
 		return
 	}
-	shared.Pipe(c.ws, c.conn)
+	shared.OldPipe(c.ws, c.conn)
 }
 
 // serveWs handles websocket requests from the peer.

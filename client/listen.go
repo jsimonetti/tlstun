@@ -7,7 +7,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/gorilla/websocket"
+	"golang.org/x/net/websocket"
 
 	"github.com/jsimonetti/tlstun/shared"
 )
@@ -53,6 +53,7 @@ func handleConn(conn net.Conn) {
 	var err error = nil
 	err = clhello.read(conn)
 	if nil != err {
+		conn.Close()
 		return
 	}
 	clhello.print()
@@ -65,6 +66,7 @@ func handleConn(conn net.Conn) {
 	//recv request
 	err = clrequest.read(conn)
 	if nil != err {
+		conn.Close()
 		return
 	}
 	clrequest.print()
@@ -73,21 +75,29 @@ func handleConn(conn net.Conn) {
 	parameters := base64.StdEncoding.EncodeToString(durl)
 
 	wsurl := fmt.Sprintf("wss://%s/sock/%d/%s/%s", wsServer, clrequest.version, clrequest.reqtype, parameters)
+	//origin := "http://localhost/"
+	origin := wsurl
 	shared.Log("daemon", "debug", fmt.Sprintf("dailing: %s", wsurl))
 
-	wsdialer := &websocket.Dialer{TLSClientConfig: tlsConfig}
-
-	pconn, _, err := wsdialer.Dial(wsurl, nil)
+	wsConfig, err := websocket.NewConfig(wsurl, origin)
 	if err != nil {
-		shared.Log("daemon", "fatal", fmt.Sprintf("ws dailer failed: %s", err))
-	}
-
-	//reply
-	//error occur
-	if nil != err {
+		shared.Log("daemon", "fatal", fmt.Sprintf("ws config failed: %s", err))
 		clresponse.gen(&clrequest, 4)
 		clresponse.write(conn)
 		clresponse.print()
+		conn.Close()
+		return
+	}
+
+	wsConfig.TlsConfig = tlsConfig
+
+	wsconn, err := websocket.DialConfig(wsConfig)
+	if err != nil {
+		shared.Log("daemon", "fatal", fmt.Sprintf("ws dial failed: %s", err))
+		clresponse.gen(&clrequest, 4)
+		clresponse.write(conn)
+		clresponse.print()
+		conn.Close()
 		return
 	}
 	//success
@@ -95,7 +105,8 @@ func handleConn(conn net.Conn) {
 	clresponse.write(conn)
 	clresponse.print()
 
-	shared.Pipe(pconn, conn)
+	inbytes, outbytes := shared.NewPipe(conn, wsconn)
+	shared.Log("daemon", "info", fmt.Sprintf("connection closed. inbytes: %d, outbytes: %d", inbytes, outbytes))
 }
 
 func forward(wss string) {
