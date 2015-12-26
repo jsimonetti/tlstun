@@ -193,4 +193,5 @@ func init() {
 	flag.BoolVar(&shared.ShowLog, "log", false, "show logging")
 	flag.IntVar(&listenPort, "port", 443, "port to listen on")
 	flag.StringVar(&listenIp, "ip", "", "ip to bind to")
+	flag.IntVar(&shared.WsTimeOut, "timeout", 10, "timeout for websocket connections")
 }

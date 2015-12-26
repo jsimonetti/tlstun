@@ -18,19 +18,22 @@ traffic.
 
 -- Options for client component:
 ```
-    -log    Show logging
-    -ip     Ip address to listen on (This will be your Socks5 ip)
-    -port   Local port to bind to (This will be your Socks5 port)
-
-    -sip    Ip of the server component to connect the websockets to
-    -sport  Port of the server component to connect the websockets to
+    -log        Show logging
+    -ip         Ip address to listen on (This will be your Socks5 ip)
+    -port       Local port to bind to (This will be your Socks5 port)
+    -sip        Ip of the server component to connect the websockets to
+    -sport      Port of the server component to connect the websockets to
 ```
 
 -- Options for server component:
 ```
-    -log    Show logging
-    -ip     Ip address to listen on
-    -port   Local port to bind to
+    -log        Show logging
+    -ip         Ip address to listen on
+    -port       Local port to bind to
+    -timeout    Timeout for reading from the websockets
+                (defaults to 10 seconds, set to whatever your application needs)
+                (SSH can send keepalive packets, so configure that instead of
+                 incresing the websocket timeout)
 ```
 
 ### TODO:

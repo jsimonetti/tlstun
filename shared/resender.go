@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var WsTimeOut int
+
 func NewPipe(src io.ReadWriteCloser, dst io.ReadWriteCloser) (int64, int64) {
 
 	var sent, received int64
@@ -66,8 +68,10 @@ func forwardconn(wsconn *websocket.Conn, conn net.Conn) {
 
 func forwardws(wsconn *websocket.Conn, conn net.Conn) {
 
+	timeout := time.Duration(WsTimeOut) * time.Second
+
 	for {
-		wsconn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		wsconn.SetReadDeadline(time.Now().Add(timeout))
 		// Send pending data to tcp socket
 		_, buffer, err := wsconn.ReadMessage()
 		if err == io.EOF {
