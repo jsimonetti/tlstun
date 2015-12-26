@@ -110,7 +110,8 @@ func handleConn(conn net.Conn) {
 	shared.Log("daemon", "info", fmt.Sprintf("connection closed. inbytes: %d, outbytes: %d", inbytes, outbytes))
 }
 
-func forward(wss string) {
+func forward(serverIp string, serverPort int) {
+	wss := fmt.Sprintf("%s:%d", serverIp, serverPort)
 	var err error
 	certf, keyf, err = readMyCert()
 	if err != nil {

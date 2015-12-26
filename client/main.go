@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 
 	"github.com/jsimonetti/tlstun/shared"
 )
@@ -15,8 +14,7 @@ var serverPort int
 
 func main() {
 	flag.Parse()
-	wsServer := fmt.Sprintf("%s:%d", serverIp, serverPort)
-	forward(wsServer)
+	forward(serverIp, serverPort)
 }
 
 func init() {
