@@ -100,6 +100,7 @@ func handleConn(conn net.Conn) {
 		conn.Close()
 		return
 	}
+
 	//success
 	clresponse.gen(&clrequest, 0)
 	clresponse.write(conn)

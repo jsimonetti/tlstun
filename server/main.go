@@ -5,12 +5,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	//	"encoding/pem"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -83,7 +83,7 @@ func (c *connection) handle() {
 	shared.Log("daemon", "debug", fmt.Sprintf("handled connection: version: %d, request: %s, parameters: %s", c.version, c.request, c.parameters))
 
 	var err error
-	c.conn, err = net.Dial(c.request, c.parameters)
+	c.conn, err = net.DialTimeout(c.request, c.parameters, time.Duration(500)*time.Millisecond)
 
 	if err != nil {
 		shared.Log("daemon", "debug", fmt.Sprintf("error dialing %s - %s, err: %s", c.request, c.parameters, err))
@@ -165,9 +165,11 @@ func listen() {
 	mux.HandleFunc("/", serveHome)
 
 	server := &http.Server{
-		Addr:      addr,
-		Handler:   mux,
-		TLSConfig: tlsConfig,
+		Addr:         addr,
+		Handler:      mux,
+		TLSConfig:    tlsConfig,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	shared.Log("daemon", "info", "attemting upgrade of server to http/2")
