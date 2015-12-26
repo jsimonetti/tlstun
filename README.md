@@ -40,3 +40,6 @@ traffic.
 - add certificate authentication to server and client component
 - add passthrough functionality to server to allow running it in front of an existing
 webserver
+
+
+Contribution to this project are welcomed!
