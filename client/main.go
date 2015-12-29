@@ -23,6 +23,15 @@ func main() {
 		go func() {
 			http.ListenAndServe("localhost:6060", nil)
 		}()
+		/*
+			go tool pprof http://localhost:6060/debug/pprof/heap
+
+			go tool pprof http://localhost:6060/debug/pprof/profile
+
+			go tool pprof http://localhost:6060/debug/pprof/block
+
+			wget http://localhost:6060/debug/pprof/trace?seconds=5
+		*/
 	}
 
 	if registerClient {
