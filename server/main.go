@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -27,38 +26,17 @@ var upgrader = websocket.Upgrader{
 var listenIp string
 var listenPort int
 
-var clientCerts []x509.Certificate
 var tlsConfig *tls.Config
 
 var certf string
 var keyf string
 
-func readSavedClientCAList() {
-	return
-	/*
-		clientCerts = []x509.Certificate{}
-
-		dbCerts, err := dbCertsGet()
-		if err != nil {
-			shared.Log("daemon", "error", fmt.Sprintf("Error reading certificates from database: %s", err))
-			return
-		}
-
-		for _, dbCert := range dbCerts {
-			certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
-			cert, err := x509.ParseCertificate(certBlock.Bytes)
-			if err != nil {
-				shared.Log("daemon", "error", fmt.Sprintf("Error reading certificate for %s: %s", dbCert.Name, err))
-				continue
-			}
-			clientCerts = append(clientCerts, *cert)
-		}
-	*/
-}
+var registerPass string
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.Error(w, "Not found", 404)
+		shared.Log("daemon", "debug", fmt.Sprintf("404 not found: %s", r.URL.Path))
 		return
 	}
 	if r.Method != "GET" {
@@ -66,7 +44,59 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if !isTrustedClient(r) {
+		w.Write([]byte(""))
+	}
 	w.Write([]byte("It Works!"))
+}
+
+func serveRegister(w http.ResponseWriter, r *http.Request) {
+	shared.Log("daemon", "debug", fmt.Sprintf("handled register"))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	var cert *x509.Certificate
+	var name string
+
+	if r.TLS != nil {
+
+		if len(r.TLS.PeerCertificates) < 1 {
+			shared.Log("daemon", "debug", "no client cert found")
+			return
+		}
+		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
+
+		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			shared.Log("daemon", "debug", fmt.Sprintf("internal error: %s", err))
+			return
+		}
+
+		name = remoteHost
+	} else {
+		return
+	}
+
+	fingerprint := certGenerateFingerprint(cert)
+	for _, existingCert := range clientCerts {
+		if fingerprint == certGenerateFingerprint(&existingCert) {
+			return
+		}
+	}
+
+	password := r.FormValue("password")
+	if !isTrustedClient(r) && !PasswordCheck(password) {
+		w.Write([]byte("Failed"))
+		return
+	}
+
+	err := saveCert(name, cert)
+	if err != nil {
+		shared.Log("daemon", "debug", fmt.Sprintf("cannot save cert: %s", err))
+		return
+	}
+
+	clientCerts = append(clientCerts, *cert)
+	w.Write([]byte("OK"))
 }
 
 type connection struct {
@@ -95,6 +125,11 @@ func (c *connection) handle() {
 
 // serveWs handles websocket requests from the peer.
 func sockHandler(w http.ResponseWriter, r *http.Request) {
+
+	if !isTrustedClient(r) {
+		shared.Log("daemon", "warn", "untrusted client connected")
+		return
+	}
 	vars := mux.Vars(r)
 	version, _ := strconv.Atoi(vars["version"])
 	request := vars["request"]
@@ -113,39 +148,6 @@ func sockHandler(w http.ResponseWriter, r *http.Request) {
 	go c.handle()
 }
 
-func isTrustedClient(r *http.Request) bool {
-	if r.TLS == nil {
-		return false
-	}
-	for i := range r.TLS.PeerCertificates {
-		if checkTrustState(*r.TLS.PeerCertificates[i]) {
-			return true
-		}
-	}
-	return false
-}
-
-func checkTrustState(cert x509.Certificate) bool {
-	for _, v := range clientCerts {
-		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			shared.Log("daemon", "debug", "Found cert")
-			return true
-		}
-		shared.Log("daemon", "debug", "Client cert != key")
-	}
-	return false
-}
-
-func readMyCert() (string, string, error) {
-	certf := "server.crt"
-	keyf := "server.key"
-	shared.Log("daemon", "info", fmt.Sprintf("Looking for existing certificates cert: %s, key: %s", certf, keyf))
-
-	err := shared.FindOrGenCert(certf, keyf)
-
-	return certf, keyf, err
-}
-
 func listen() {
 	/* Setup the TLS authentication */
 	certf, keyf, err := readMyCert()
@@ -162,6 +164,7 @@ func listen() {
 	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
 	mux := mux.NewRouter()
 	mux.HandleFunc("/sock/{version}/{request}/{parameters}", sockHandler)
+	mux.HandleFunc("/register", serveRegister)
 	mux.HandleFunc("/", serveHome)
 
 	server := &http.Server{
@@ -186,6 +189,9 @@ func listen() {
 
 func main() {
 	flag.Parse()
+	if err := initializeDbObject("./tlstun.sqlite3"); err != nil {
+		shared.Log("daemon", "error", "Could not init database")
+	}
 	listen()
 }
 
@@ -193,5 +199,6 @@ func init() {
 	flag.BoolVar(&shared.ShowLog, "log", false, "show logging")
 	flag.IntVar(&listenPort, "port", 443, "port to listen on")
 	flag.StringVar(&listenIp, "ip", "", "ip to bind to")
+	flag.StringVar(&registerPass, "regpass", "", "password to use for registration")
 	flag.IntVar(&shared.WsTimeOut, "timeout", 10, "timeout for websocket connections")
 }
