@@ -23,6 +23,7 @@ traffic.
     -port       Local port to bind to (This will be your Socks5 port)
     -sip        Ip of the server component to connect the websockets to
     -sport      Port of the server component to connect the websockets to
+    -register   Prompt for server password to register your certificate on the server
 ```
 
 -- Options for server component:
@@ -34,12 +35,13 @@ traffic.
                 (defaults to 10 seconds, set to whatever your application needs)
                 (SSH can send keepalive packets, so configure that instead of
                  incresing the websocket timeout)
+    -regpass    Password to use when registering clients. Only needed during
+                client registering.
 ```
 
 ### TODO:
-- add certificate authentication to server and client component
 - add passthrough functionality to server to allow running it in front of an existing
 webserver
 
 
-Contribution to this project are welcomed!
+Contributions to this project are welcomed!
