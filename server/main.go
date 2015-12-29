@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 	"time"
 
@@ -45,9 +46,10 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if !isTrustedClient(r) {
-		w.Write([]byte(""))
+		w.Write([]byte("It Works!"))
+		return
 	}
-	w.Write([]byte("It Works!"))
+	w.Write([]byte("It Works and you have a trusted cert!"))
 }
 
 func serveRegister(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +127,6 @@ func (c *connection) handle() {
 
 // serveWs handles websocket requests from the peer.
 func sockHandler(w http.ResponseWriter, r *http.Request) {
-
 	if !isTrustedClient(r) {
 		shared.Log("daemon", "warn", "untrusted client connected")
 		return
@@ -188,14 +189,24 @@ func listen() {
 }
 
 func main() {
+
 	flag.Parse()
+
+	if *cpuprofile {
+		go func() {
+			http.ListenAndServe("localhost:6060", nil)
+		}()
+	}
 	if err := initializeDbObject("./tlstun.sqlite3"); err != nil {
 		shared.Log("daemon", "error", "Could not init database")
 	}
 	listen()
 }
 
+var cpuprofile bool
+
 func init() {
+	flag.BoolVar(&cpuprofile, "cpuprofile", false, "show cpu profile on http://localhost:6060")
 	flag.BoolVar(&shared.ShowLog, "log", false, "show logging")
 	flag.IntVar(&listenPort, "port", 443, "port to listen on")
 	flag.StringVar(&listenIp, "ip", "", "ip to bind to")

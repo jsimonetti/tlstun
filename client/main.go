@@ -16,6 +16,13 @@ var registerClient bool
 
 func main() {
 	flag.Parse()
+
+	if *cpuprofile {
+		go func() {
+			http.ListenAndServe("localhost:6060", nil)
+		}()
+	}
+
 	if registerClient {
 		shared.Log("client", "info", "registering client with server")
 		register()
@@ -24,7 +31,10 @@ func main() {
 	forward(serverIp, serverPort)
 }
 
+var cpuprofile bool
+
 func init() {
+	flag.BoolVar(&cpuprofile, "cpuprofile", false, "show cpu profile on http://localhost:6060")
 	flag.IntVar(&listenPort, "port", 1080, "port to listen on")
 	flag.BoolVar(&shared.ShowLog, "log", false, "show logging")
 	flag.BoolVar(&registerClient, "register", false, "register client to the server")
