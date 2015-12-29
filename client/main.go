@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/jsimonetti/tlstun/shared"
 )
@@ -17,7 +19,7 @@ var registerClient bool
 func main() {
 	flag.Parse()
 
-	if *cpuprofile {
+	if cpuprofile {
 		go func() {
 			http.ListenAndServe("localhost:6060", nil)
 		}()

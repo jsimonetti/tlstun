@@ -192,7 +192,7 @@ func main() {
 
 	flag.Parse()
 
-	if *cpuprofile {
+	if cpuprofile {
 		go func() {
 			http.ListenAndServe("localhost:6060", nil)
 		}()
