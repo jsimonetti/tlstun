@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/howeyc/gopass"
 
 	"github.com/jsimonetti/tlstun/shared"
 )
@@ -20,20 +18,10 @@ var scert *x509.Certificate
 func register() error {
 	var password string
 	fmt.Printf("Enter password:")
-	pwd, err := terminal.ReadPassword(0)
-	if err != nil {
-		buf := bufio.NewReader(os.Stdin)
-		pwd, _, err := buf.ReadLine()
-		if err != nil {
-			shared.Log("client", "error", fmt.Sprintf("Failed reading password: %s", err))
-			return err
-		}
-		password = string(pwd)
-	}
-	fmt.Println("")
-	password = string(pwd)
+	pwd := gopass.GetPasswd()
 
-	resp, err := post(password)
+	password = string(pwd)
+	resp, _ := post(password)
 
 	fmt.Printf("\nResponse: %s\n", resp)
 

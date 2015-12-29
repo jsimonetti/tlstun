@@ -161,7 +161,7 @@ func PasswordCheck(password string) bool {
 	}
 
 	if !bytes.Equal([]byte(password), []byte(registerPass)) {
-		shared.Log("daemon", "error", "Bad password received")
+		shared.Log("daemon", "error", fmt.Sprintf("Bad password received: %s != %s", password, registerPass))
 		return false
 	}
 	shared.Log("daemon", "info", "Verified the admin password")
