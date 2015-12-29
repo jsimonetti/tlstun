@@ -33,7 +33,7 @@ func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 		nn, err = conn.Read(buf[n:m])
 		if nil != err && io.EOF != err {
 			shared.Log("daemon", "error", fmt.Sprintf("err: %s", err))
-			panic(err)
+			panic("recv error: " + err.Error())
 			return
 		}
 		n += nn
