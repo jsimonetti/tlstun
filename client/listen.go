@@ -7,9 +7,8 @@ import (
 	"io"
 	"net"
 
-	"golang.org/x/net/websocket"
-
 	"github.com/jsimonetti/tlstun/shared"
+	"github.com/jsimonetti/tlstun/shared/websocket"
 )
 
 var wsServer string = "127.0.0.1:12345"

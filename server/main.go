@@ -10,19 +10,21 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
+	//	"github.com/gorilla/mux"
+	//	"github.com/gorilla/websocket"
 	"golang.org/x/net/http2"
 
 	"github.com/jsimonetti/tlstun/shared"
+	"github.com/jsimonetti/tlstun/shared/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024 * 1024,
-	WriteBufferSize: 1024 * 1024,
-}
+//var upgrader = websocket.Upgrader{
+//	ReadBufferSize:  1024 * 1024,
+//	WriteBufferSize: 1024 * 1024,
+//}
 
 var listenIp string
 var listenPort int
@@ -122,10 +124,11 @@ func (c *connection) handle() {
 		c.ws.Close()
 		return
 	}
-	shared.OldPipe(c.ws, c.conn)
+	//shared.OldPipe(c.ws, c.conn)
+	shared.NewPipe(c.ws, c.conn)
 }
 
-// serveWs handles websocket requests from the peer.
+/*
 func sockHandler(w http.ResponseWriter, r *http.Request) {
 	if !isTrustedClient(r) {
 		shared.Log("daemon", "warn", "untrusted client connected")
@@ -148,6 +151,30 @@ func sockHandler(w http.ResponseWriter, r *http.Request) {
 	c := &connection{version: version, request: request, parameters: fmt.Sprintf("%s", parameters), ws: ws}
 	go c.handle()
 }
+*/
+func sockHandler2(w *websocket.Conn) {
+	r := w.Request()
+	if !isTrustedClient(r) {
+		shared.Log("daemon", "warn", "untrusted client connected")
+		return
+	}
+	vars := strings.SplitN(r.URL.Path, "/", 5)
+
+	version, _ := strconv.Atoi(vars[2])
+	request := vars[3]
+	parameters, err := base64.StdEncoding.DecodeString(vars[4])
+	if err != nil {
+		shared.Log("daemon", "error", fmt.Sprintf("base64decode failed: %s", err))
+		return
+	}
+
+	if err != nil {
+		shared.Log("daemon", "error", fmt.Sprintf("ws upgrade failed: %s", err))
+		return
+	}
+	c := &connection{version: version, request: request, parameters: fmt.Sprintf("%s", parameters), ws: w}
+	go c.handle()
+}
 
 func listen() {
 	/* Setup the TLS authentication */
@@ -163,14 +190,18 @@ func listen() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
-	mux := mux.NewRouter()
-	mux.HandleFunc("/sock/{version}/{request}/{parameters}", sockHandler)
-	mux.HandleFunc("/register", serveRegister)
-	mux.HandleFunc("/", serveHome)
+	//mux := mux.NewRouter()
+	//mux.HandleFunc("/sock/{version}/{request}/{parameters}", sockHandler)
+	//mux.HandleFunc("/register", serveRegister)
+	//mux.HandleFunc("/", serveHome)
+
+	http.Handle("/sock/", websocket.Handler(sockHandler2))
+	http.HandleFunc("/register", serveRegister)
+	http.HandleFunc("/", serveHome)
 
 	server := &http.Server{
-		Addr:         addr,
-		Handler:      mux,
+		Addr: addr,
+		//		Handler:      mux,
 		TLSConfig:    tlsConfig,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -220,5 +251,4 @@ func init() {
 	flag.IntVar(&listenPort, "port", 443, "port to listen on")
 	flag.StringVar(&listenIp, "ip", "", "ip to bind to")
 	flag.StringVar(&registerPass, "regpass", "", "password to use for registration")
-	flag.IntVar(&shared.WsTimeOut, "timeout", 10, "timeout for websocket connections")
 }

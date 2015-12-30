@@ -31,10 +31,6 @@ traffic.
     -log        Show logging
     -ip         Ip address to listen on
     -port       Local port to bind to
-    -timeout    Timeout for reading from the websockets
-                (defaults to 10 seconds, set to whatever your application needs)
-                (SSH can send keepalive packets, so configure that instead of
-                 incresing the websocket timeout)
     -regpass    Password to use when registering clients. Only needed during
                 client registering.
 ```
