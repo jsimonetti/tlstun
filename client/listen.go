@@ -105,7 +105,7 @@ func handleConn(conn net.Conn) {
 	clresponse.write(conn)
 	clresponse.print()
 
-	inbytes, outbytes := shared.NewPipe(conn, wsconn)
+	inbytes, outbytes := shared.Pipe(conn, wsconn)
 	shared.Log("daemon", "info", fmt.Sprintf("connection closed. inbytes: %d, outbytes: %d", inbytes, outbytes))
 }
 

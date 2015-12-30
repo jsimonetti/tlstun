@@ -13,18 +13,11 @@ import (
 	"strings"
 	"time"
 
-	//	"github.com/gorilla/mux"
-	//	"github.com/gorilla/websocket"
 	"golang.org/x/net/http2"
 
 	"github.com/jsimonetti/tlstun/shared"
 	"github.com/jsimonetti/tlstun/shared/websocket"
 )
-
-//var upgrader = websocket.Upgrader{
-//	ReadBufferSize:  1024 * 1024,
-//	WriteBufferSize: 1024 * 1024,
-//}
 
 var listenIp string
 var listenPort int
@@ -124,35 +117,12 @@ func (c *connection) handle() {
 		c.ws.Close()
 		return
 	}
-	//shared.OldPipe(c.ws, c.conn)
-	shared.NewPipe(c.ws, c.conn)
+
+	inbytes, outbytes := shared.Pipe(c.conn, c.ws)
+	shared.Log("daemon", "info", fmt.Sprintf("connection closed. inbytes: %d, outbytes: %d", inbytes, outbytes))
 }
 
-/*
-func sockHandler(w http.ResponseWriter, r *http.Request) {
-	if !isTrustedClient(r) {
-		shared.Log("daemon", "warn", "untrusted client connected")
-		return
-	}
-	vars := mux.Vars(r)
-	version, _ := strconv.Atoi(vars["version"])
-	request := vars["request"]
-	parameters, err := base64.StdEncoding.DecodeString(vars["parameters"])
-	if err != nil {
-		shared.Log("daemon", "error", fmt.Sprintf("base64decode failed: %s", err))
-		return
-	}
-
-	ws, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		shared.Log("daemon", "error", fmt.Sprintf("ws upgrade failed: %s", err))
-		return
-	}
-	c := &connection{version: version, request: request, parameters: fmt.Sprintf("%s", parameters), ws: ws}
-	go c.handle()
-}
-*/
-func sockHandler2(w *websocket.Conn) {
+func sockHandler(w *websocket.Conn) {
 	r := w.Request()
 	if !isTrustedClient(r) {
 		shared.Log("daemon", "warn", "untrusted client connected")
@@ -190,12 +160,8 @@ func listen() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", listenIp, listenPort)
-	//mux := mux.NewRouter()
-	//mux.HandleFunc("/sock/{version}/{request}/{parameters}", sockHandler)
-	//mux.HandleFunc("/register", serveRegister)
-	//mux.HandleFunc("/", serveHome)
 
-	http.Handle("/sock/", websocket.Handler(sockHandler2))
+	http.Handle("/sock/", websocket.Handler(sockHandler))
 	http.HandleFunc("/register", serveRegister)
 	http.HandleFunc("/", serveHome)
 

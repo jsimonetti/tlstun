@@ -1,13 +1,8 @@
 package shared
 
 import (
-	//	"fmt"
 	"io"
-	"net"
 	"sync"
-	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 func Pipe(src io.ReadWriteCloser, dst io.ReadWriteCloser) (int64, int64) {
