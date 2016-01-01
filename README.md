@@ -4,7 +4,7 @@ TLSTun is a [Go](http://golang.org/) client server application to tunnel through
 firewalls.
 
 
-The client will connect to the server component over a [WebSockets](http://www.rfc-editor.org/rfc/rfc6455.txt).
+The client will connect to the server component over a [WebSocket](http://www.rfc-editor.org/rfc/rfc6455.txt).
 All client connections are then muxed over the WebSocket
 to the server which connects the to a socks [Socks](https://en.wikipedia.org/wiki/SOCKS) proxy.
 The server then proxies the connection from the mux to the real
