@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"os"
 
 	"github.com/hashicorp/yamux"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -33,7 +32,6 @@ type Daemon struct {
 	listenAddr string // local ip:port to bind to
 	serverAddr string // server ip:port running the tls websocket proxy
 
-	pwd       string      // my location
 	tlsConfig *tls.Config // tls configuration for connections to the server
 	certf     string      // my client certificate
 	keyf      string      // my client key
@@ -69,13 +67,6 @@ func (d *Daemon) Run() error {
 }
 
 func (d *Daemon) Init() error {
-
-	/* read my path */
-	pwd, err := os.Readlink("/proc/self/exe")
-	if err != nil {
-		return err
-	}
-	d.pwd = pwd
 
 	/* Setup the TLS authentication */
 	certf, keyf, err := shared.ReadMyCert("client.crt", "client.key")

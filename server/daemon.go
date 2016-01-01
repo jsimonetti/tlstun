@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"os"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -31,7 +30,6 @@ func startDaemon() (*Daemon, error) {
 type Daemon struct {
 	listenAddr string // local ip:port to bind to
 
-	pwd       string      // my location
 	tlsConfig *tls.Config // tls configuration for connections to the server
 	certf     string      // my client certificate
 	keyf      string      // my client key
@@ -78,13 +76,6 @@ func (d *Daemon) Run() error {
 }
 
 func (d *Daemon) Init() error {
-
-	/* read my path */
-	pwd, err := os.Readlink("/proc/self/exe")
-	if err != nil {
-		return err
-	}
-	d.pwd = pwd
 
 	/* Setup the TLS authentication */
 	certf, keyf, err := shared.ReadMyCert("server.crt", "server.key")
