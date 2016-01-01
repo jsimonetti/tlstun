@@ -142,7 +142,7 @@ func dbCertSave(db *sql.DB, cert *dbCertInfo) error {
 	return txCommit(tx)
 }
 
-func PasswordCheck(password string) bool {
+func PasswordCheck(d *Daemon, password string) bool {
 	// No password set
 	if registerPass == "" {
 		return false

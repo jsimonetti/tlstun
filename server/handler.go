@@ -75,7 +75,7 @@ func serveRegister(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	}
 
 	password := r.FormValue("password")
-	if !d.isTrustedClient(r) && !PasswordCheck(password) {
+	if !d.isTrustedClient(r) && !PasswordCheck(d, password) {
 		w.Write([]byte("Failed"))
 		return
 	}
