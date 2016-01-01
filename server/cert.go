@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jsimonetti/tlstun/shared"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // dbCertInfo is here to pass the certificates content
@@ -22,14 +22,12 @@ type dbCertInfo struct {
 	Certificate string
 }
 
-var clientCerts []x509.Certificate
+func readSavedClientCAList(d *Daemon) {
+	d.clientCerts = []x509.Certificate{}
 
-func readSavedClientCAList() {
-	clientCerts = []x509.Certificate{}
-
-	dbCerts, err := dbCertsGet(db)
+	dbCerts, err := dbCertsGet(d.db)
 	if err != nil {
-		shared.Log("daemon", "error", fmt.Sprintf("Error reading certificates from database: %s", err))
+		d.log.Error("Error reading certificates from database", log.Ctx{"error": err})
 		return
 	}
 
@@ -37,10 +35,10 @@ func readSavedClientCAList() {
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			shared.Log("daemon", "error", fmt.Sprintf("Error reading certificate for %s: %s", dbCert.Name, err))
+			d.log.Error("Error reading certificate", log.Ctx{"name": dbCert.Name, "error": err})
 			continue
 		}
-		clientCerts = append(clientCerts, *cert)
+		d.clientCerts = append(d.clientCerts, *cert)
 	}
 }
 
@@ -48,7 +46,7 @@ func certGenerateFingerprint(cert *x509.Certificate) string {
 	return fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
 }
 
-func saveCert(host string, cert *x509.Certificate) error {
+func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 	baseCert := new(dbCertInfo)
 	baseCert.Fingerprint = certGenerateFingerprint(cert)
 	baseCert.Type = 1
@@ -57,40 +55,30 @@ func saveCert(host string, cert *x509.Certificate) error {
 		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}),
 	)
 
-	return dbCertSave(db, baseCert)
+	return dbCertSave(d.db, baseCert)
 }
 
-func isTrustedClient(r *http.Request) bool {
+func (d *Daemon) isTrustedClient(r *http.Request) bool {
 	if r.TLS == nil {
 		return false
 	}
 	for i := range r.TLS.PeerCertificates {
-		if checkTrustState(*r.TLS.PeerCertificates[i]) {
+		if d.CheckTrustState(*r.TLS.PeerCertificates[i]) {
 			return true
 		}
 	}
 	return false
 }
 
-func checkTrustState(cert x509.Certificate) bool {
-	for _, v := range clientCerts {
+func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
+	for _, v := range d.clientCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			shared.Log("daemon", "debug", "Found cert")
+			d.log.Debug("Found cert")
 			return true
 		}
-		shared.Log("daemon", "debug", "Client cert != key")
+		d.log.Debug("Client cert != key")
 	}
 	return false
-}
-
-func readMyCert() (string, string, error) {
-	certf := "server.crt"
-	keyf := "server.key"
-	shared.Log("daemon", "info", fmt.Sprintf("Looking for existing certificates cert: %s, key: %s", certf, keyf))
-
-	err := shared.FindOrGenCert(certf, keyf)
-
-	return certf, keyf, err
 }
 
 // dbCertsGet returns all certificates from the DB as CertBaseInfo objects.
@@ -161,9 +149,9 @@ func PasswordCheck(password string) bool {
 	}
 
 	if !bytes.Equal([]byte(password), []byte(registerPass)) {
-		shared.Log("daemon", "error", fmt.Sprintf("Bad password received: %s != %s", password, registerPass))
+		d.log.Error("Bad password received")
 		return false
 	}
-	shared.Log("daemon", "info", "Verified the admin password")
+	d.log.Info("Verified the admin password")
 	return true
 }

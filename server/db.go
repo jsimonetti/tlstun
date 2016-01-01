@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/mattn/go-sqlite3"
-
-	"github.com/jsimonetti/tlstun/shared"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 const DB_CURRENT_VERSION int = 1
@@ -20,9 +19,13 @@ CREATE TABLE IF NOT EXISTS certificates (
     name VARCHAR(255) NOT NULL,
     certificate TEXT NOT NULL,
     UNIQUE (fingerprint)
+);
+CREATE TABLE IF NOT EXISTS schema (
+id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+version INTEGER NOT NULL,
+updated_at DATETIME NOT NULL,
+UNIQUE (version)
 );`
-
-var db *sql.DB
 
 func createDb(db *sql.DB) (err error) {
 	_, err = db.Exec(CURRENT_SCHEMA)
@@ -58,8 +61,9 @@ func dbGetSchema(db *sql.DB) (v int) {
 }
 
 // Create a database connection object and return it.
-func initializeDbObject(path string) (err error) {
+func initializeDbObject(d *Daemon, path string) error {
 	var openPath string
+	var err error
 
 	timeout := 5 // TODO - make this command-line configurable?
 
@@ -68,7 +72,7 @@ func initializeDbObject(path string) (err error) {
 	openPath = fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
 
 	// Open the database. If the file doesn't exist it is created.
-	db, err = sql.Open("sqlite3", openPath)
+	db, err := sql.Open("sqlite3", openPath)
 	if err != nil {
 		return err
 	}
@@ -85,12 +89,13 @@ func initializeDbObject(path string) (err error) {
 	v := dbGetSchema(db)
 
 	if v != DB_CURRENT_VERSION {
-		err = dbUpdate(v)
+		err = dbUpdate(db, v)
 		if err != nil {
 			return err
 		}
 	}
 
+	d.db = db
 	return nil
 }
 
@@ -106,7 +111,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 		if !isDbLockedError(err) {
 			return err
 		}
-		shared.Log("daemon", "error", fmt.Sprintf("DbQueryRowScan: query %q args %q, DB was locked", q, args))
+		d.log.Error("DbQueryRowScan", log.Ctx{"query": q, "args": args, "reason": "DB was locked"})
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -141,10 +146,10 @@ func dbBegin(db *sql.DB) (*sql.Tx, error) {
 			return tx, nil
 		}
 		if !isDbLockedError(err) {
-			shared.Log("daemon", "error", fmt.Sprintf("DbBegin: error %q", err))
+			d.log.Error("DbBegin: error", log.Ctx{"error": err})
 			return nil, err
 		}
-		shared.Log("daemon", "debug", "DB was locked")
+		d.log.Debug("DB was locked")
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -156,10 +161,10 @@ func txCommit(tx *sql.Tx) error {
 			return nil
 		}
 		if !isDbLockedError(err) {
-			shared.Log("daemon", "error", fmt.Sprintf("Txcommit: error %q", err))
+			d.log.Error("Txcommit: error", log.Ctx{"error": err})
 			return err
 		}
-		shared.Log("daemon", "debug", "Txcommit: db was locked")
+		d.log.Debug("Txcommit: db was locked")
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -171,15 +176,15 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 			return result, nil
 		}
 		if !isDbLockedError(err) {
-			shared.Log("daemon", "debug", fmt.Sprintf("DbQuery: query %q error %q", q, err))
+			d.log.Error("DbQuery error", log.Ctx{"query": q, "error": err})
 			return nil, err
 		}
-		shared.Log("daemon", "debug", fmt.Sprintf("DbQuery: query %q args %q, DB was locked", q, args))
+		d.log.Debug("DbQuery", log.Ctx{"query": q, "args": args, "reason": "DB was locked"})
 		time.Sleep(1 * time.Second)
 	}
 }
 
-func dbUpdate(prevVersion int) error {
+func dbUpdate(db *sql.DB, prevVersion int) error {
 	if prevVersion < 0 || prevVersion > DB_CURRENT_VERSION {
 		return fmt.Errorf("Bad database version: %d", prevVersion)
 	}

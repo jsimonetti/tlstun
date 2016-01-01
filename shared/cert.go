@@ -7,7 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"fmt"
+	//"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -17,6 +17,14 @@ import (
 )
 
 /* code from github.com/lxc/lxd */
+
+func ReadMyCert(certf string, keyf string) (string, string, error) {
+	//shared.Log("daemon", "info", fmt.Sprintf("Looking for existing certificates cert: %s, key: %s", certf, keyf))
+
+	err := FindOrGenCert(certf, keyf)
+
+	return certf, keyf, err
+}
 
 /*
  * Generate a list of names for which the certificate will be valid.
@@ -90,7 +98,7 @@ func FindOrGenCert(certf string, keyf string) error {
 func GenCert(certf string, keyf string) error {
 	privk, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		Log("daemon", "error", "failed to generate key")
+		//Log("daemon", "error", "failed to generate key")
 		return err
 	}
 
@@ -108,7 +116,7 @@ func GenCert(certf string, keyf string) error {
 
 	hosts, err := mynames()
 	if err != nil {
-		Log("daemon", "error", "Failed to get my hostname")
+		//Log("daemon", "error", "Failed to get my hostname")
 		return err
 	}
 
@@ -118,7 +126,7 @@ func GenCert(certf string, keyf string) error {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		Log("daemon", "error", fmt.Sprintf("failed to generate serial number: %s", err))
+		//Log("daemon", "error", fmt.Sprintf("failed to generate serial number: %s", err))
 		return err
 	}
 
@@ -146,13 +154,13 @@ func GenCert(certf string, keyf string) error {
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privk.PublicKey, privk)
 	if err != nil {
-		Log("daemon", "error", fmt.Sprintf("Failed to create certificate: %s", err))
+		//Log("daemon", "error", fmt.Sprintf("Failed to create certificate: %s", err))
 		return err
 	}
 
 	certOut, err := os.Create(certf)
 	if err != nil {
-		Log("daemon", "error", fmt.Sprintf("failed to open %s for writing: %s", certf, err))
+		//Log("daemon", "error", fmt.Sprintf("failed to open %s for writing: %s", certf, err))
 		return err
 	}
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
@@ -160,7 +168,7 @@ func GenCert(certf string, keyf string) error {
 
 	keyOut, err := os.OpenFile(keyf, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		Log("daemon", "error", fmt.Sprintf("failed to open %s for writing: %s", keyf, err))
+		//Log("daemon", "error", fmt.Sprintf("failed to open %s for writing: %s", keyf, err))
 		return err
 	}
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privk)})

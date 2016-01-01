@@ -21,8 +21,12 @@ func register() error {
 	pwd := gopass.GetPasswd()
 
 	password = string(pwd)
-	resp, _ := post(password)
+	resp, err := post(password)
 
+	if err != nil {
+		fmt.Printf("\nRegistration failed", err)
+		return err
+	}
 	fmt.Printf("\nResponse: %s\n", resp)
 
 	return nil
@@ -30,7 +34,7 @@ func register() error {
 
 func post(pass string) (string, error) {
 	mynil := ""
-	certf, keyf, err := readMyCert()
+	certf, keyf, err := shared.ReadMyCert("client.crt", "client.key")
 	if err != nil {
 		return mynil, err
 	}
@@ -68,7 +72,7 @@ func loadServerCert() {
 	name := fmt.Sprintf("server-%s:%d.crt", serverIp, serverPort)
 	cert, err := ReadCert(name)
 	if err != nil {
-		shared.Log("client", "error", fmt.Sprintf("Error reading the server certificate for %s: %v", name, err))
+		fmt.Printf("Error reading the server certificate for %s: %v", name, err)
 		return
 	}
 
