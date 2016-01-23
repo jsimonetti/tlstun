@@ -18,7 +18,7 @@ var scert *x509.Certificate
 func register() error {
 	var password string
 	fmt.Printf("Enter password:")
-	pwd := gopass.GetPasswd()
+	pwd, _ := gopass.GetPasswd()
 
 	password = string(pwd)
 	resp, err := post(password)
