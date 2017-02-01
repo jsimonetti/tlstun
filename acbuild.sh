@@ -16,8 +16,9 @@ acbuild dependency add quay.io/coreos/alpine-sh
 acbuild mount add config /config
 acbuild copy ~/tmp/tlstun_server /tlstun_server
 acbuild port add tunnel tcp 8443
-acbuild run -- adduser -u 60000 -G nobody -D -H -s /bin/sh vpn
-acbuild set-exec -- su vpn -c 'cd /config;/tlstun_server $@ ' -- --
+acbuild set-user 101001
+acbuild set-working-directory /config
+acbuild set-exec /tlstun_server
 acbuild write tlstun_server.aci
 acbuild end
 
