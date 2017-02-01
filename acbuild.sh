@@ -17,6 +17,7 @@ acbuild mount add config /config
 acbuild copy ~/tmp/tlstun_server /tlstun_server
 acbuild port add tunnel tcp 8443
 acbuild set-user nobody
+acbuild set-group nogroup
 acbuild set-working-directory /config
 acbuild set-exec /tlstun_server
 acbuild write tlstun_server.aci
