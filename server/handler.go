@@ -2,12 +2,17 @@ package main
 
 import (
 	"crypto/x509"
+	"io"
 	"net"
 	"net/http"
+	"time"
+
+	"golang.org/x/net/websocket"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/jsimonetti/tlstun/shared/websocket"
+	"github.com/hashicorp/yamux"
+	"github.com/jsimonetti/tlstun/shared"
 )
 
 func sockHandler(d *Daemon, w *websocket.Conn) {
@@ -34,11 +39,38 @@ func sockHandler(d *Daemon, w *websocket.Conn) {
 	}
 
 	client := &clientConnection{
-		websocket: w,
-		log:       clog,
-		raddr:     raddr,
+		log:   clog,
+		raddr: raddr,
 	}
-	go client.run()
+
+	client.log.Debug("starting yamux on ws")
+
+	session, err := yamux.Server(w, nil)
+	if err != nil {
+		client.log.Crit("could not initialise yamux session", log.Ctx{"error": err})
+		return
+	}
+
+	client.log.Debug("yamux session started")
+	client.session = session
+
+	client.log.Debug("listening for streams")
+	// Accept a stream
+	for {
+		stream, id, err := client.acceptStream()
+		stream.SetDeadline(time.Now().Add(shared.TimeOut))
+		if err != nil {
+			if err != io.EOF {
+				client.log.Error("error acception stream", log.Ctx{"error": err})
+			}
+			w.Close()
+			client.session.Close()
+			return
+		}
+		client.log.Debug("accepted stream", log.Ctx{"streamid": id})
+		go client.handleStream(stream, id)
+	}
+
 }
 
 func serveRegister(d *Daemon, w http.ResponseWriter, r *http.Request) {

@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"golang.org/x/net/websocket"
+
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/jsimonetti/tlstun/shared"
-	"github.com/jsimonetti/tlstun/shared/websocket"
 )
 
 func startDaemon() (*Daemon, error) {

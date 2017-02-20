@@ -2,6 +2,7 @@ package shared
 
 import (
 	"os"
+	"time"
 )
 
 func PathExists(name string) bool {
@@ -11,3 +12,5 @@ func PathExists(name string) bool {
 	}
 	return true
 }
+
+var TimeOut = 10 * time.Second

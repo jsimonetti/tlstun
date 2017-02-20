@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"net"
 	"time"
 
@@ -9,14 +8,12 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/jsimonetti/tlstun/shared"
-	"github.com/jsimonetti/tlstun/shared/websocket"
 )
 
 type clientConnection struct {
-	log       log.Logger
-	websocket *websocket.Conn
-	session   *yamux.Session
-	raddr     string
+	log     log.Logger
+	session *yamux.Session
+	raddr   string
 }
 
 // Accept is used to block until the next available stream
@@ -24,36 +21,10 @@ type clientConnection struct {
 func (c *clientConnection) acceptStream() (net.Conn, uint32, error) {
 	conn, err := c.session.AcceptStream()
 	if err != nil {
+		time.Sleep(10 * time.Nanosecond)
 		return nil, 0, err
 	}
 	return conn, conn.StreamID(), err
-}
-
-func (c *clientConnection) run() {
-	c.log.Debug("starting yamux on ws")
-
-	session, err := yamux.Server(c.websocket, nil)
-	if err != nil {
-		c.log.Crit("could not initialise yamux session", log.Ctx{"error": err})
-	}
-	c.log.Debug("yamux session started")
-	c.session = session
-
-	c.log.Debug("listening for streams")
-	// Accept a stream
-	for {
-		stream, id, err := c.acceptStream()
-		if err != nil {
-			if err != io.EOF {
-				c.log.Error("error acception stream", log.Ctx{"error": err})
-			}
-			c.websocket.Close()
-			c.session.Close()
-			return
-		}
-		c.log.Debug("accepted stream", log.Ctx{"streamid": id})
-		go c.handleStream(stream, id)
-	}
 }
 
 func (c *clientConnection) handleStream(stream net.Conn, streamid uint32) {
@@ -108,4 +79,9 @@ func (c *clientConnection) handleStream(stream net.Conn, streamid uint32) {
 
 	inbytes, outbytes := shared.Pipe(conn, stream)
 	clog.Info("upstream connection closed", log.Ctx{"request": clrequest.reqtype, "dst": clrequest.url, "inbytes": inbytes, "outbytes": outbytes})
+	defer func() {
+		conn.Close()
+		stream.Close()
+	}()
+
 }

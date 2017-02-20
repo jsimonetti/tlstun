@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net"
 
+	"golang.org/x/net/websocket"
+
 	"github.com/hashicorp/yamux"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/jsimonetti/tlstun/shared"
-	"github.com/jsimonetti/tlstun/shared/websocket"
 )
 
 func openWebsocket(d *Daemon) error {
@@ -72,6 +73,7 @@ func handleSession(d *Daemon, conn net.Conn) {
 		}
 
 	}
+
 	stream, err = d.session.Open()
 	if err != nil {
 		if err == yamux.ErrSessionShutdown {
@@ -91,5 +93,9 @@ func handleSession(d *Daemon, conn net.Conn) {
 	}
 
 	inbytes, outbytes := shared.Pipe(conn, stream)
-	connlog.Info("connection closed", log.Ctx{"inbytes": inbytes, "outbytes": outbytes})
+	connlog.Info("connection closed", log.Ctx{"inbytes": inbytes, "outbytes": outbytes, "open": d.session.NumStreams()})
+	defer func() {
+		conn.Close()
+		stream.Close()
+	}()
 }

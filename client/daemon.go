@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"net"
 
+	"golang.org/x/net/websocket"
+
 	"github.com/hashicorp/yamux"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/jsimonetti/tlstun/shared"
-	"github.com/jsimonetti/tlstun/shared/websocket"
 )
 
 func startDaemon() (*Daemon, error) {
