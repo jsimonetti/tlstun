@@ -58,7 +58,7 @@ func sockHandler(d *Daemon, w *websocket.Conn) {
 		stream, id, err := client.acceptStream()
 		if err != nil {
 			if err != io.EOF {
-				client.log.Error("error acception stream", log.Ctx{"error": err})
+				client.log.Info("error acception stream", log.Ctx{"error": err})
 			}
 			w.Close()
 			client.session.Close()

@@ -1,39 +1,13 @@
 package shared
 
 import (
-	"io"
 	"net"
-	"sync"
 	"time"
 )
 
-func Pipe(src io.ReadWriteCloser, dst io.ReadWriteCloser) (int64, int64) {
+// below is taken from shadowsocks-go (github.com/shadowsocks/shadowsocks-go)
+// and slightly modified to return values
 
-	var sent, received int64
-	var c = make(chan bool)
-	var o sync.Once
-
-	close := func() {
-		src.Close()
-		dst.Close()
-		close(c)
-	}
-
-	go func() {
-		received, _ = io.Copy(src.(io.ReadWriteCloser), dst.(io.ReadWriteCloser))
-		o.Do(close)
-	}()
-
-	go func() {
-		sent, _ = io.Copy(dst.(io.ReadWriteCloser), src.(io.ReadWriteCloser))
-		o.Do(close)
-	}()
-
-	<-c
-	return received, sent
-}
-
-// below is from shadowsocks-go (github.com/shadowsocks/shadowsocks-go)
 func SetReadTimeout(c net.Conn) {
 	if readTimeout != 0 {
 		c.SetReadDeadline(time.Now().Add(readTimeout))
