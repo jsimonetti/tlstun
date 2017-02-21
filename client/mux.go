@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"sync"
 
 	"golang.org/x/net/websocket"
 
@@ -92,10 +93,20 @@ func handleSession(d *Daemon, conn net.Conn) {
 		}
 	}
 
-	inbytes, outbytes := shared.Pipe(conn, stream)
-	connlog.Info("connection closed", log.Ctx{"inbytes": inbytes, "outbytes": outbytes, "open": d.session.NumStreams()})
-	defer func() {
-		conn.Close()
-		stream.Close()
+	connlog.Info("connection copy started", log.Ctx{"open": d.session.NumStreams()})
+	var wg sync.WaitGroup
+	var received, sent int64
+	wg.Add(2)
+	go func() {
+		received = shared.PipeThenClose(conn, stream)
+		wg.Done()
 	}()
+	go func() {
+		sent = shared.PipeThenClose(stream, conn)
+		wg.Done()
+	}()
+	wg.Wait()
+
+	connlog.Info("connection closed", log.Ctx{"inbytes": received, "outbytes": sent, "open": d.session.NumStreams()})
+
 }

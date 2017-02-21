@@ -13,4 +13,4 @@ func PathExists(name string) bool {
 	return true
 }
 
-var TimeOut = 10 * time.Second
+var readTimeout = 10 * time.Second

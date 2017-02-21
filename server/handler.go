@@ -5,14 +5,12 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"time"
 
 	"golang.org/x/net/websocket"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/hashicorp/yamux"
-	"github.com/jsimonetti/tlstun/shared"
 )
 
 func sockHandler(d *Daemon, w *websocket.Conn) {
@@ -58,7 +56,6 @@ func sockHandler(d *Daemon, w *websocket.Conn) {
 	// Accept a stream
 	for {
 		stream, id, err := client.acceptStream()
-		stream.SetDeadline(time.Now().Add(shared.TimeOut))
 		if err != nil {
 			if err != io.EOF {
 				client.log.Error("error acception stream", log.Ctx{"error": err})

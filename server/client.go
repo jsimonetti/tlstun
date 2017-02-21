@@ -2,6 +2,7 @@ package main
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/yamux"
@@ -77,11 +78,19 @@ func (c *clientConnection) handleStream(stream net.Conn, streamid uint32) {
 	clresponse.write(stream)
 	clog.Debug(clresponse.print())
 
-	inbytes, outbytes := shared.Pipe(conn, stream)
-	clog.Info("upstream connection closed", log.Ctx{"request": clrequest.reqtype, "dst": clrequest.url, "inbytes": inbytes, "outbytes": outbytes})
-	defer func() {
-		conn.Close()
-		stream.Close()
+	clog.Info("connection copy started", log.Ctx{})
+	var wg sync.WaitGroup
+	var received, sent int64
+	wg.Add(2)
+	go func() {
+		received = shared.PipeThenClose(conn, stream)
+		wg.Done()
 	}()
+	go func() {
+		sent = shared.PipeThenClose(stream, conn)
+		wg.Done()
+	}()
+	wg.Wait()
 
+	clog.Info("connection closed", log.Ctx{"inbytes": received, "outbytes": sent})
 }
