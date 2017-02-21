@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+var readTimeout = 120 * time.Second
+
 // below is taken from shadowsocks-go (github.com/shadowsocks/shadowsocks-go)
 // and slightly modified to return values
 
@@ -21,8 +23,8 @@ func PipeThenClose(src, dst net.Conn) (copied int64) {
 	buf := leakyBuf.Get()
 	defer leakyBuf.Put(buf)
 	for {
-		SetReadTimeout(src)
 		n, err := src.Read(buf)
+		SetReadTimeout(src)
 		copied += int64(n)
 		// read may return EOF with n > 0
 		// should always process n > 0 bytes before handling error

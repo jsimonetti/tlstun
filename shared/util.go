@@ -1,9 +1,6 @@
 package shared
 
-import (
-	"os"
-	"time"
-)
+import "os"
 
 func PathExists(name string) bool {
 	_, err := os.Lstat(name)
@@ -12,5 +9,3 @@ func PathExists(name string) bool {
 	}
 	return true
 }
-
-var readTimeout = 10 * time.Second
