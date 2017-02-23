@@ -27,7 +27,7 @@ func (msg *clHello) read(conn net.Conn) (err error) {
 	}
 	return
 }
-func (msg *clHello) print() (string, log.Ctx) {
+func (msg *clHello) log() (string, log.Ctx) {
 	return "received hello", log.Ctx{"version": msg.version, "authmethodcount": msg.authmethodcount, "authmethods": msg.authmethods[:msg.authmethodcount]}
 }
 
@@ -98,7 +98,7 @@ func (msg *clRequest) read(conn net.Conn) (err error) {
 	}
 	return
 }
-func (msg *clRequest) print() (string, log.Ctx) {
+func (msg *clRequest) log() (string, log.Ctx) {
 	return "received request", log.Ctx{"version": msg.version, "command": msg.command, "rsvd": msg.reserved, "addrtype": msg.addrestype, "dst_addr": msg.url}
 }
 
@@ -116,7 +116,7 @@ func (msg *clEcho) write(conn net.Conn) {
 	conn.Write(msg.buf[:])
 }
 
-func (msg *clEcho) print() (string, log.Ctx) {
+func (msg *clEcho) log() (string, log.Ctx) {
 	return "sent echo", log.Ctx{"version": msg.version, "method": msg.method}
 }
 
@@ -147,7 +147,7 @@ func (msg *clResponse) write(conn net.Conn) {
 	conn.Write(msg.buf[:msg.mlen])
 }
 
-func (msg *clResponse) print() (string, log.Ctx) {
+func (msg *clResponse) log() (string, log.Ctx) {
 	return "sent response", log.Ctx{"response": msg.buf[:msg.mlen]}
 }
 
@@ -184,18 +184,5 @@ func recv(buf []byte, m int, conn net.Conn) (n int, err error) {
 		ticker.Stop()
 	}
 	err = fmt.Errorf("recv timeout: %v", tick)
-	return
-}
-
-func orgrecv(buf []byte, m int, conn net.Conn) (n int, err error) {
-	for nn := 0; n < m; {
-		nn, err = conn.Read(buf[n:m])
-		if nil != err && io.EOF != err {
-			fmt.Println("error recv socks", log.Ctx{"err": err})
-			panic("recv error: " + err.Error())
-			return
-		}
-		n += nn
-	}
 	return
 }

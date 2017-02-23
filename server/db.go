@@ -89,7 +89,7 @@ func initializeDbObject(d *Daemon, path string) error {
 	v := dbGetSchema(db)
 
 	if v != DB_CURRENT_VERSION {
-		err = dbUpdate(db, v)
+		err = dbUpdate(v)
 		if err != nil {
 			return err
 		}
@@ -184,7 +184,7 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 	}
 }
 
-func dbUpdate(db *sql.DB, prevVersion int) error {
+func dbUpdate(prevVersion int) error {
 	if prevVersion < 0 || prevVersion > DB_CURRENT_VERSION {
 		return fmt.Errorf("Bad database version: %d", prevVersion)
 	}

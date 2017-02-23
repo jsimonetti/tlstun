@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,18 +11,16 @@ import (
 	"github.com/jsimonetti/tlstun/shared"
 )
 
-var scert *x509.Certificate
-
 func register() error {
 	var password string
-	fmt.Printf("Enter password:")
+	fmt.Print("Enter password:")
 	pwd, _ := gopass.GetPasswd()
 
 	password = string(pwd)
 	resp, err := post(password)
 
 	if err != nil {
-		fmt.Printf("\nRegistration failed", err)
+		fmt.Print("\nRegistration failed", err)
 		return err
 	}
 	fmt.Printf("\nResponse: %s\n", resp)
@@ -68,23 +64,4 @@ func post(pass string) (string, error) {
 	return val, err
 }
 
-func loadServerCert() {
-	name := fmt.Sprintf("server-%s:%d.crt", serverIp, serverPort)
-	cert, err := ReadCert(name)
-	if err != nil {
-		fmt.Printf("Error reading the server certificate for %s: %v", name, err)
-		return
-	}
 
-	scert = cert
-}
-
-func ReadCert(fpath string) (*x509.Certificate, error) {
-	cf, err := ioutil.ReadFile(fpath)
-	if err != nil {
-		return nil, err
-	}
-
-	certBlock, _ := pem.Decode(cf)
-	return x509.ParseCertificate(certBlock.Bytes)
-}

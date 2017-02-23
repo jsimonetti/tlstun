@@ -2,6 +2,7 @@ package shared
 
 import (
 	"net"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,21 @@ func SetReadTimeout(c net.Conn) {
 	if readTimeout != 0 {
 		c.SetReadDeadline(time.Now().Add(readTimeout))
 	}
+}
+
+func Pipe(src, dst net.Conn) (sent, received int64) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		received = PipeThenClose(src, dst)
+		wg.Done()
+	}()
+	go func() {
+		sent = PipeThenClose(dst, src)
+		wg.Done()
+	}()
+	wg.Wait()
+	return
 }
 
 // PipeThenClose copies data from src to dst, closes dst when done.

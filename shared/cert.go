@@ -8,7 +8,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	//"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -176,12 +175,3 @@ func GenCert(certf string, keyf string) error {
 	return nil
 }
 
-func ReadCert(fpath string) (*x509.Certificate, error) {
-	cf, err := ioutil.ReadFile(fpath)
-	if err != nil {
-		return nil, err
-	}
-
-	certBlock, _ := pem.Decode(cf)
-	return x509.ParseCertificate(certBlock.Bytes)
-}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/yamux"
@@ -45,12 +44,12 @@ func (c *clientConnection) handleStream(stream net.Conn, streamid uint32) {
 		stream.Close()
 		return
 	}
-	clog.Debug(clhello.print())
+	clog.Debug(clhello.log())
 
 	//send echo
 	clecho.gen(0)
 	clecho.write(stream)
-	clog.Debug(clecho.print())
+	clog.Debug(clecho.log())
 
 	//recv request
 	err = clrequest.read(stream)
@@ -59,7 +58,7 @@ func (c *clientConnection) handleStream(stream net.Conn, streamid uint32) {
 		stream.Close()
 		return
 	}
-	clog.Debug(clrequest.print())
+	clog.Debug(clrequest.log())
 	//connect
 
 	clog.Debug("accepted socks request", log.Ctx{"request": clrequest.reqtype, "dst": clrequest.url})
@@ -69,28 +68,16 @@ func (c *clientConnection) handleStream(stream net.Conn, streamid uint32) {
 		clog.Error("error dialing upstream", log.Ctx{"error": err})
 		clresponse.gen(&clrequest, 4)
 		clresponse.write(stream)
-		clog.Debug(clresponse.print())
+		clog.Debug(clresponse.log())
 		stream.Close()
 		return
 	}
 	//success
 	clresponse.gen(&clrequest, 0)
 	clresponse.write(stream)
-	clog.Debug(clresponse.print())
+	clog.Debug(clresponse.log())
 
 	clog.Info("connection copy started", log.Ctx{})
-	var wg sync.WaitGroup
-	var received, sent int64
-	wg.Add(2)
-	go func() {
-		received = shared.PipeThenClose(conn, stream)
-		wg.Done()
-	}()
-	go func() {
-		sent = shared.PipeThenClose(stream, conn)
-		wg.Done()
-	}()
-	wg.Wait()
-
+	received, sent := shared.Pipe(stream, conn)
 	clog.Info("connection closed", log.Ctx{"inbytes": received, "outbytes": sent})
 }
