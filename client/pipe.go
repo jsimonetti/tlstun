@@ -1,4 +1,4 @@
-package shared
+package client
 
 import (
 	"net"
@@ -6,30 +6,30 @@ import (
 	"time"
 )
 
-var readTimeout = 120 * time.Second
-
-// below is taken from shadowsocks-go (github.com/shadowsocks/shadowsocks-go)
-// and slightly modified to return values
-
-func SetReadTimeout(c net.Conn) {
-	if readTimeout != 0 {
-		c.SetReadDeadline(time.Now().Add(readTimeout))
-	}
-}
-
 func Pipe(src, dst net.Conn) (sent, received int64) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		received = PipeThenClose(src, dst)
+		sent = PipeThenClose(src, dst)
 		wg.Done()
 	}()
 	go func() {
-		sent = PipeThenClose(dst, src)
+		received = PipeThenClose(dst, src)
 		wg.Done()
 	}()
 	wg.Wait()
 	return
+}
+
+// below is taken from shadowsocks-go (github.com/shadowsocks/shadowsocks-go)
+// slightly modified to return values and use a writetimeout
+
+var writeTimeout = 10 * time.Second
+
+func SetWriteTimeout(c net.Conn) {
+	if writeTimeout != 0 {
+		c.SetWriteDeadline(time.Now().Add(writeTimeout))
+	}
 }
 
 // PipeThenClose copies data from src to dst, closes dst when done.
@@ -40,11 +40,11 @@ func PipeThenClose(src, dst net.Conn) (copied int64) {
 	defer leakyBuf.Put(buf)
 	for {
 		n, err := src.Read(buf)
-		SetReadTimeout(src)
 		copied += int64(n)
 		// read may return EOF with n > 0
 		// should always process n > 0 bytes before handling error
 		if n > 0 {
+			SetWriteTimeout(dst)
 			// Note: avoid overwrite err returned by Read.
 			if _, err := dst.Write(buf[0:n]); err != nil {
 				break
@@ -54,11 +54,6 @@ func PipeThenClose(src, dst net.Conn) (copied int64) {
 			// Always "use of closed network connection", but no easy way to
 			// identify this specific error. So just leave the error along for now.
 			// More info here: https://code.google.com/p/go/issues/detail?id=4373
-			/*
-				if bool(Debug) && err != io.EOF {
-					Debug.Println("read:", err)
-				}
-			*/
 			break
 		}
 	}

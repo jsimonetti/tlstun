@@ -1,99 +1,90 @@
-package main
+package client
 
 import (
-	"fmt"
 	"net"
-
-	"golang.org/x/net/websocket"
+	"sync/atomic"
 
 	"github.com/hashicorp/yamux"
-	log "gopkg.in/inconshreveable/log15.v2"
-
-	"github.com/jsimonetti/tlstun/shared"
+	"golang.org/x/net/websocket"
 )
 
-func openWebsocket(d *Daemon) error {
-	// open websocket
-	wsurl := fmt.Sprintf("wss://%s/sock/", d.serverAddr)
-	origin := wsurl
+func (c *client) handleSession(conn net.Conn) {
+	var sent, received int64
 
-	d.log.Debug("dialing server", log.Ctx{"wsurl": wsurl})
+	defer func(sent, received *int64) {
+		atomic.AddInt32(&c.connections, -1)
+		c.log.Printf("closed connection from: %s, sent: %d, received: %d, open connections: %d\n", conn.RemoteAddr(), *sent, *received, atomic.LoadInt32(&c.connections))
+		conn.Close()
+	}(&sent, &received)
 
-	wsConfig, err := websocket.NewConfig(wsurl, origin)
+	var err error
+	var stream net.Conn
+
+	c.lock.Lock()
+	// Open a new stream
+	if c.session == nil {
+		err = c.openSession()
+		if err != nil {
+			c.lock.Unlock()
+			c.log.Printf("error opening session: %s", err)
+			return
+		}
+	}
+	c.lock.Unlock()
+
+	stream, err = c.session.Open()
 	if err != nil {
-		d.log.Error("ws config failed", log.Ctx{"error": err})
-		return err
+		if err == yamux.ErrSessionShutdown {
+			c.lock.Lock()
+			err = c.openSession()
+			c.lock.Unlock()
+			if err != nil {
+				c.log.Printf("error opening session: %s", err)
+				return
+			}
+		}
+		stream, err = c.session.Open()
+		if err != nil {
+			c.log.Printf("error opening stream: %s", err)
+			return
+		}
 	}
 
-	wsConfig.TlsConfig = d.tlsConfig
-
-	wsconn, err := websocket.DialConfig(wsConfig)
-	if err != nil {
-		d.log.Error("ws dial failed", log.Ctx{"error": err})
-		return err
-	}
-	d.wsconn = wsconn
-	//
-	return nil
+	received, sent = Pipe(stream, conn)
 }
 
-func openSession(d *Daemon) error {
-
-	err := openWebsocket(d)
+func (c *client) openSession() error {
+	err := c.openWebsocket()
 	if err != nil {
-		d.log.Error("could not open websocket", log.Ctx{"error": err})
 		return err
 	}
 
 	// Setup client side of yamux
-	session, err := yamux.Client(d.wsconn, nil)
+	session, err := yamux.Client(c.webSocket, nil)
 	if err != nil {
-		d.log.Error("Yamux session failed!", log.Ctx{"error": err})
+		return err
 	}
 
-	d.session = session
-
+	c.session = session
 	return nil
 }
 
-func handleSession(d *Daemon, conn net.Conn) {
-	var err error
-	var stream net.Conn
+func (c *client) openWebsocket() error {
+	wsurl := "wss://" + c.serverAddr + "/tlstun/socket/"
+	origin := wsurl
 
-	connlog := d.log.New("raddr", conn.RemoteAddr())
-	connlog.Debug("opening yamux stream")
-
-	// Open a new stream
-	if d.session == nil {
-		d.log.Debug("session was not open, opening...")
-		err = openSession(d)
-		if err != nil {
-			d.log.Error("could not open session", log.Ctx{"error": err})
-			return
-		}
-
-	}
-
-	stream, err = d.session.Open()
+	wsConfig, err := websocket.NewConfig(wsurl, origin)
 	if err != nil {
-		if err == yamux.ErrSessionShutdown {
-			d.log.Debug("session was shut down, reopening...")
-			err = openSession(d)
-			if err != nil {
-				d.log.Error("could not open session", log.Ctx{"error": err})
-				return
-			}
-		}
-		stream, err = d.session.Open()
-		if err != nil {
-			d.log.Error("Stream open failed!", log.Ctx{"error": err})
-			conn.Close()
-			return
-		}
+		return err
+	}
+	wsConfig.TlsConfig = c.tlsConfig
+
+	wsconn, err := websocket.DialConfig(wsConfig)
+	if err != nil {
+		return err
 	}
 
-	connlog.Info("connection copy started", log.Ctx{"open": d.session.NumStreams()})
-	received, sent := shared.Pipe(stream, conn)
-	connlog.Info("connection closed", log.Ctx{"inbytes": received, "outbytes": sent, "open": d.session.NumStreams()})
-
+	c.log.Printf("connected to server: %s", wsurl)
+	c.webSocket = wsconn
+	return nil
 }
