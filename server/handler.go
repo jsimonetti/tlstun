@@ -1,140 +1,128 @@
-package main
+package server
 
 import (
 	"crypto/x509"
 	"io"
-	"net"
 	"net/http"
-
-	"golang.org/x/net/websocket"
-
-	log "gopkg.in/inconshreveable/log15.v2"
+	"strings"
+	"sync/atomic"
 
 	"github.com/hashicorp/yamux"
+	"golang.org/x/net/websocket"
 )
 
-func sockHandler(d *Daemon, w *websocket.Conn) {
-	r := w.Request()
-	raddr := r.RemoteAddr
-	if !d.isTrustedClient(r) {
-		d.log.Warn("untrusted client connected", log.Ctx{"raddr": raddr})
+func (s *server) sockHandler(w *websocket.Conn) {
+	if !s.isTrusted(w.Request()) {
+		s.log.Printf("untrusted client connected from %s", w.Request().RemoteAddr)
 		return
 	}
+	atomic.AddInt32(&s.connections, 1)
 
-	d.log.Debug("handing over client connection", log.Ctx{"raddr": raddr})
-
-	clog := log.New(log.Ctx{"module": "socks", "raddr": raddr})
-	handler := log.StdoutHandler
-
-	if quiet {
-		clog.SetHandler(log.DiscardHandler())
-	} else if verbose {
-		clog.SetHandler(log.LvlFilterHandler(log.LvlInfo, handler))
-	} else if debug {
-		clog.SetHandler(log.LvlFilterHandler(log.LvlDebug, handler))
-	} else {
-		clog.SetHandler(log.LvlFilterHandler(log.LvlError, handler))
-	}
-
-	client := &clientConnection{
-		log:   clog,
-		raddr: raddr,
-	}
-
-	client.log.Debug("starting yamux on ws")
+	s.log.Printf("serving client connection, raddr: %s, connections: %d", w.Request().RemoteAddr, atomic.LoadInt32(&s.connections))
 
 	session, err := yamux.Server(w, nil)
 	if err != nil {
-		client.log.Crit("could not initialise yamux session", log.Ctx{"error": err})
+		s.log.Printf("could not initialise yamux session: %s", err)
 		return
 	}
 
-	client.log.Debug("yamux session started")
-	client.session = session
+	var streams int32
 
-	client.log.Debug("listening for streams")
-	// Accept a stream
 	for {
-		stream, id, err := client.acceptStream()
+		stream, err := session.AcceptStream()
 		if err != nil {
 			if err != io.EOF {
-				client.log.Info("error acception stream", log.Ctx{"error": err})
+				s.log.Printf("error acception stream: %s, connections: %d, ", err, atomic.LoadInt32(&s.connections))
 			}
-			w.Close()
-			client.session.Close()
-			return
+			break
 		}
-		client.log.Debug("accepted stream", log.Ctx{"streamid": id})
-		go client.handleStream(stream, id)
+		atomic.AddInt32(&streams, 1)
+		id := stream.StreamID()
+		s.log.Printf("accepted stream for id: %d, connections: %d, streams: %d", id, atomic.LoadInt32(&s.connections), streams)
+
+		go func() {
+			//no error handling needed, socks package allready logs errors
+			s.socksServer.ServeConn(stream)
+			atomic.AddInt32(&streams, -1)
+			s.log.Printf("ended stream for id: %d, connections: %d, streams: %d", id, atomic.LoadInt32(&s.connections), atomic.LoadInt32(&streams))
+			stream.Close()
+		}()
 	}
 
+	atomic.AddInt32(&s.connections, -1)
+	s.log.Printf("connection closed, raddr: %s, connections: %d", w.Request().RemoteAddr, atomic.LoadInt32(&s.connections))
+	w.Close()
+	return
 }
 
-func serveRegister(d *Daemon, w http.ResponseWriter, r *http.Request) {
-	d.log.Debug("handled register")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+func (s *server) serveRegister(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/tlstun/register" || r.Method != "POST" {
+		http.Error(w, "Not found", 404)
+		s.log.Printf("404 not found: %s %s", r.Method, r.URL.Path)
+		return
+	}
+	s.log.Printf("handled register for %s", r.RemoteAddr)
 
 	var cert *x509.Certificate
-	var name string
 
 	if r.TLS != nil {
-
 		if len(r.TLS.PeerCertificates) < 1 {
-			d.log.Debug("no client cert found")
+			s.log.Printf("no client cert found registering for %s", r.RemoteAddr)
+			http.Error(w, "Not found", 404)
 			return
 		}
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
-
-		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			d.log.Debug("internal error", log.Ctx{"error": err})
-			return
-		}
-
-		name = remoteHost
 	} else {
 		return
 	}
 
-	fingerprint := certGenerateFingerprint(cert)
-	for _, existingCert := range d.clientCerts {
-		if fingerprint == certGenerateFingerprint(&existingCert) {
-			return
-		}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	password := r.FormValue("password")
+	if s.isTrusted(r) {
+		w.Write([]byte("Allready trusted"))
+		return
 	}
 
-	password := r.FormValue("password")
-	if !d.isTrustedClient(r) && !PasswordCheck(d, password) {
+	if !s.passwordCheck(password) {
 		w.Write([]byte("Failed"))
 		return
 	}
 
-	err := saveCert(d, name, cert)
+	err := s.saveCert(cert)
 	if err != nil {
-		d.log.Warn("cannot save cert", log.Ctx{"error": err})
+		s.log.Printf("cannot save cert: %s", err)
 		return
 	}
 
-	d.clientCerts = append(d.clientCerts, *cert)
 	w.Write([]byte("OK"))
 }
 
-func serveHome(d *Daemon, w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
+func (s *server) servePoison(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" || !s.isTrusted(r) {
 		http.Error(w, "Not found", 404)
-		d.log.Debug("404 not found", log.Ctx{"path": r.URL.Path})
+		s.log.Printf("404 not found: %s %s", r.Method, r.URL.Path)
 		return
 	}
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", 405)
-		d.log.Debug("Method not allowed", log.Ctx{"path": r.URL.Path, "method": r.Method})
-		return
-	}
-	d.log.Debug("served page", log.Ctx{"url": r.URL.Path})
+	s.log.Printf("served poison: %s", r.URL.Path)
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if !d.isTrustedClient(r) {
-		w.Write([]byte("It Works!"))
+	w.Write([]byte(strings.TrimPrefix(r.URL.Path, "/tlstun/poison/")))
+	return
+}
+
+func (s *server) serveHome(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/tlstun/status" || r.Method != "GET" {
+		http.Error(w, "Not found", 404)
+		s.log.Printf("404 not found: %s %s", r.Method, r.URL.Path)
 		return
 	}
-	w.Write([]byte("It Works and you have a trusted cert!"))
+
+	s.log.Printf("served page: %s", r.URL.Path)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if !s.isTrusted(r) {
+		w.Write([]byte(UnTrustedResponse()))
+		return
+	}
+	w.Write([]byte(TrustedResponse()))
+	return
 }

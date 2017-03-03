@@ -1,0 +1,17 @@
+{
+    "client_verbose": false,
+    "client_bind": "127.0.0.1",
+    "client_port": 1080,
+    "client_serveraddress": "127.0.0.1:8443",
+	"client_insecure": false,
+	"client_ca": "ca.crt",
+	"client_certfile": "client.crt",
+	"client_keyfile": "client.key",
+    "server_verbose": true,
+    "server_bind": "127.0.0.1",
+    "server_port": 8443,
+    "server_registerpassword": "",
+    "server_ca": "ca.crt",
+    "server_certfile": "server.crt",
+    "server_keyfile": "server.key",
+}
