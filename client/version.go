@@ -1,6 +1,6 @@
 package client
 
-const version string = "0.3"
+const version string = "1.0"
 
 func Version() string {
 	return version
