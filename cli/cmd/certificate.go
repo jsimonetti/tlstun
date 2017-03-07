@@ -117,7 +117,7 @@ func clientCertGenerate(cmd *cobra.Command, args []string) {
 
 	certf := certificateCmd.PersistentFlags().Lookup("certfile").Value.String()
 	keyf := certificateCmd.PersistentFlags().Lookup("keyfile").Value.String()
-	cafile := certificateCmd.PersistentFlags().Lookup("cafile").Value.String()
+	cafile := certificateCmd.PersistentFlags().Lookup("cacert").Value.String()
 	cakey := certificateCmd.PersistentFlags().Lookup("cakey").Value.String()
 	name := certificateCmd.PersistentFlags().Lookup("name").Value.String()
 
