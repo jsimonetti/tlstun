@@ -39,8 +39,8 @@ var caCertCmd = &cobra.Command{
 func caCertGenerate(cmd *cobra.Command, args []string) {
 	fmt.Printf("Generating CA certificate ...")
 
-	certf := certificateCmd.PersistentFlags().Lookup("certfile").Value.String()
-	keyf := certificateCmd.PersistentFlags().Lookup("keyfile").Value.String()
+	certf := certificateCmd.PersistentFlags().Lookup("cacert").Value.String()
+	keyf := certificateCmd.PersistentFlags().Lookup("cakey").Value.String()
 
 	cacert, err := cert.CreateCaCertificate()
 	if err != nil {
