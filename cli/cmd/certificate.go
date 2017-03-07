@@ -128,7 +128,7 @@ func clientCertGenerate(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	servercert, err := cert.CreateServerCertificate(ca, name)
+	servercert, err := cert.CreateClientCertificate(ca, name)
 	if err != nil {
 		fmt.Printf("error: %s", err)
 		return
