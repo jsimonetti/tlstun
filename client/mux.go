@@ -2,10 +2,13 @@ package client
 
 import (
 	"net"
+	"net/http"
 	"sync/atomic"
 
+	"github.com/gorilla/websocket"
 	"github.com/hashicorp/yamux"
-	"golang.org/x/net/websocket"
+
+	"github.com/jsimonetti/tlstun/protocol"
 )
 
 func (c *client) handleSession(conn net.Conn) {
@@ -60,7 +63,8 @@ func (c *client) openSession() error {
 	}
 
 	// Setup client side of yamux
-	session, err := yamux.Client(c.webSocket, nil)
+	wrc := protocol.NewWsWRC(c.webSocket, c.log)
+	session, err := yamux.Client(wrc, nil)
 	if err != nil {
 		return err
 	}
@@ -73,14 +77,18 @@ func (c *client) openWebsocket() error {
 	wsurl := "wss://" + c.serverAddr + "/tlstun/socket/"
 	origin := wsurl
 
-	wsConfig, err := websocket.NewConfig(wsurl, origin)
-	if err != nil {
-		return err
+	wsDialer := &websocket.Dialer{
+		Proxy:           http.ProxyFromEnvironment,
+		TLSClientConfig: c.tlsConfig,
 	}
-	wsConfig.TlsConfig = c.tlsConfig
 
-	wsconn, err := websocket.DialConfig(wsConfig)
+	wsHeader := make(http.Header)
+	wsHeader.Add("Origin", origin)
+	wsHeader.Add("Sec-WebSocket-Protocol", protocol.ProtoVersion())
+
+	wsconn, _, err := wsDialer.Dial(wsurl, wsHeader)
 	if err != nil {
+		c.log.Printf("error opening websocket: %s", err)
 		return err
 	}
 
