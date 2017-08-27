@@ -15,6 +15,7 @@ import (
 
 	socks5 "github.com/armon/go-socks5"
 	"github.com/boltdb/bolt"
+	"golang.org/x/net/websocket"
 )
 
 type Config struct {
@@ -79,9 +80,9 @@ func (s *server) Start() {
 		s.log.Fatal(err)
 	}
 
-	http.HandleFunc("/tlstun/socket/", func(w http.ResponseWriter, r *http.Request) {
-		s.sockHandler(w, r)
-	})
+	http.Handle("/tlstun/socket/", websocket.Handler(func(w *websocket.Conn) {
+		s.sockHandler(w)
+	}))
 	http.HandleFunc("/tlstun/register", func(w http.ResponseWriter, r *http.Request) {
 		s.serveRegister(w, r)
 	})
