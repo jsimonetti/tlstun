@@ -15,7 +15,6 @@ import (
 	"github.com/jsimonetti/tlstun/cert"
 	"github.com/jsimonetti/tlstun/log"
 
-	"github.com/gorilla/websocket"
 	"github.com/hashicorp/yamux"
 )
 
@@ -44,7 +43,7 @@ type client struct {
 
 	lock      sync.Mutex
 	session   *yamux.Session
-	webSocket *websocket.Conn
+	webSocket net.Conn
 }
 
 func NewClient(config Config) *client {

@@ -7,30 +7,20 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/jsimonetti/tlstun/protocol"
-
-	"github.com/gorilla/websocket"
 	"github.com/hashicorp/yamux"
+	"golang.org/x/net/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
-
-func (s *server) sockHandler(w http.ResponseWriter, r *http.Request) {
-	if !s.isTrusted(r) {
-		s.log.Printf("untrusted client connected from %s", r.RemoteAddr)
+func (s *server) sockHandler(w *websocket.Conn) {
+	if !s.isTrusted(w.Request()) {
+		s.log.Printf("untrusted client connected from %s", w.Request().RemoteAddr)
 		return
 	}
 	atomic.AddInt32(&s.connections, 1)
 
-	s.log.Printf("serving client connection, raddr: %s, connections: %d", r.RemoteAddr, atomic.LoadInt32(&s.connections))
+	s.log.Printf("serving client connection, raddr: %s, connections: %d", w.Request().RemoteAddr, atomic.LoadInt32(&s.connections))
 
-	ws, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		s.log.Printf("could not upgrade to websocket: %s", err)
-	}
-
-	wrc := protocol.NewWsWRC(ws, s.log)
-	session, err := yamux.Server(wrc, nil)
+	session, err := yamux.Server(w, nil)
 	if err != nil {
 		s.log.Printf("could not initialise yamux session: %s", err)
 		return
@@ -60,8 +50,8 @@ func (s *server) sockHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	atomic.AddInt32(&s.connections, -1)
-	s.log.Printf("connection closed, raddr: %s, connections: %d", r.RemoteAddr, atomic.LoadInt32(&s.connections))
-	wrc.Close()
+	s.log.Printf("connection closed, raddr: %s, connections: %d", w.Request().RemoteAddr, atomic.LoadInt32(&s.connections))
+	w.Close()
 	return
 }
 
