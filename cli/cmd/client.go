@@ -19,6 +19,7 @@ func init() {
 	clientCmd.PersistentFlags().Int("port", 1080, "Port of the client")
 	clientCmd.PersistentFlags().String("server", "127.0.0.1:8443", "Address of the server")
 	clientCmd.PersistentFlags().Bool("insecure", false, "Don't check server certificate")
+	clientCmd.PersistentFlags().Bool("nopoison", false, "Don't poison firewall cache")
 	clientCmd.PersistentFlags().String("ca", "", "CA certificate filename")
 	clientCmd.PersistentFlags().String("certfile", "", "Client certificate filename")
 	clientCmd.PersistentFlags().String("keyfile", "", "Client key filename")
@@ -28,6 +29,7 @@ func init() {
 	viper.BindPFlag("client_port", clientCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("client_serveraddress", clientCmd.PersistentFlags().Lookup("server"))
 	viper.BindPFlag("client_insecure", clientCmd.PersistentFlags().Lookup("insecure"))
+	viper.BindPFlag("client_nopoison", clientCmd.PersistentFlags().Lookup("nopoison"))
 	viper.BindPFlag("client_ca", clientCmd.PersistentFlags().Lookup("ca"))
 	viper.BindPFlag("client_certfile", clientCmd.PersistentFlags().Lookup("certfile"))
 	viper.BindPFlag("client_keyfile", clientCmd.PersistentFlags().Lookup("keyfile"))
@@ -43,6 +45,7 @@ func clientConfig() client.Config {
 		Certificate:   viper.GetString("client_certfile"),
 		Key:           viper.GetString("client_keyfile"),
 		Insecure:      viper.GetBool("client_insecure"),
+		NoPoison:      viper.GetBool("client_nopoison"),
 	}
 }
 

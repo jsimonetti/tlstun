@@ -27,6 +27,7 @@ type Config struct {
 	Certificate   string
 	Key           string
 	Insecure      bool
+	NoPoison      bool
 }
 
 type client struct {
@@ -38,6 +39,7 @@ type client struct {
 	key         string
 	ca          string
 	insecure    bool
+	nopoison    bool
 
 	connections int32
 
@@ -56,13 +58,16 @@ func NewClient(config Config) *client {
 		key:         config.Key,
 		ca:          config.CA,
 		insecure:    config.Insecure,
+		nopoison:    config.NoPoison,
 	}
 	c.getTlsConfig()
 	return c
 }
 
 func (c *client) Start() {
-	c.poison()
+	if !c.nopoison {
+		c.poison()
+	}
 
 	c.log.Printf("listening start on %s\n", c.listenAddr)
 	ln, err := net.Listen("tcp", c.listenAddr)
